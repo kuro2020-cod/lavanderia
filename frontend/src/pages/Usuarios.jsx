@@ -37,7 +37,11 @@ const Usuarios = () => {
   }
 
   const handleDelete = async (id) => {
-    if (window.confirm('¿Eliminar este usuario? Esta acción no se puede deshacer.')) {
+    if (
+      window.confirm(
+        '¿Ocultar este usuario? Deja de verse en el sistema y no puede volver a entrar. El historial de caja se conserva.'
+      )
+    ) {
       try {
         await usuariosAPI.delete(id)
         loadUsuarios()
@@ -155,7 +159,7 @@ const Usuarios = () => {
                             type="button"
                             onClick={() => handleDelete(u.id)}
                             className="text-red-600 hover:text-red-900 p-2"
-                            title="Eliminar"
+                            title="Ocultar"
                           >
                             <Trash2 size={18} />
                           </button>

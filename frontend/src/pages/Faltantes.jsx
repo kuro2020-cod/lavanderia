@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   ClipboardList,
   CheckCircle2,
@@ -9,12 +10,14 @@ import {
   Mail,
   Send,
   Plus,
-  X
+  X,
+  Eye,
+  Minus
 } from 'lucide-react'
-import { categoriasAPI, faltantesAPI, productosAPI, reporteFaltantesAPI } from '../services/api'
+import { categoriasAPI, faltantesAPI, pedidosAPI, productosAPI, reporteFaltantesAPI } from '../services/api'
 import CategoriaProductoSelect from '../components/CategoriaProductoSelect'
 import { hoyLocalISO } from '../utils/fechas'
-import { fmtCantidadStock } from '../utils/unidades'
+import { esVentaPorMedidaDecimal, fmtCantidadStock, redondearCantidad } from '../utils/unidades'
 import { useAuth } from '../context/AuthContext'
 import { esRolAdmin } from '../utils/roles'
 
@@ -52,7 +55,8 @@ const Faltantes = () => {
   const { user } = useAuth()
   const isAdmin = esRolAdmin(user?.rol)
   const hoy = hoyLocalISO()
-  const [tab, setTab] = useState('registros')
+  const [searchParams] = useSearchParams()
+  const [tab, setTab] = useState(searchParams.get('tab') === 'stock_bajo' ? 'stock_bajo' : 'registros')
   const [desde, setDesde] = useState(hoy)
   const [hasta, setHasta] = useState(hoy)
   const [lista, setLista] = useState([])
@@ -67,6 +71,10 @@ const Faltantes = () => {
   const [errorStock, setErrorStock] = useState(null)
   const [busquedaStock, setBusquedaStock] = useState('')
   const [paginaStock, setPaginaStock] = useState(1)
+  const [cantidadesPedido, setCantidadesPedido] = useState({})
+  const [showPreview, setShowPreview] = useState(false)
+  const [enviandoPedido, setEnviandoPedido] = useState(false)
+  const [pedidoMsg, setPedidoMsg] = useState(null)
 
   const [cfgEmails, setCfgEmails] = useState(['bruno.german99@gmail.com'])
   const [cfgEmailDraft, setCfgEmailDraft] = useState('')
@@ -147,6 +155,94 @@ const Faltantes = () => {
   useEffect(() => {
     setPaginaStock(1)
   }, [busquedaStock, stockBajo])
+
+  const cantidadPedidoDe = (p) => {
+    const raw = cantidadesPedido[p.id]
+    if (raw === undefined || raw === '') return 0
+    const n = Number(raw)
+    return Number.isFinite(n) ? n : 0
+  }
+
+  const setCantidadPedido = (p, next) => {
+    const decimal = esVentaPorMedidaDecimal(p.unidad_medida)
+    let n = Number(next)
+    if (!Number.isFinite(n) || n < 0) n = 0
+    n = decimal ? redondearCantidad(n, 3) : Math.floor(n)
+    setCantidadesPedido((prev) => ({ ...prev, [p.id]: n }))
+  }
+
+  const cambiarCantidadPedido = (p, signo) => {
+    const decimal = esVentaPorMedidaDecimal(p.unidad_medida)
+    const paso = decimal ? 0.1 : 1
+    setCantidadPedido(p, cantidadPedidoDe(p) + signo * paso)
+  }
+
+  const itemsPedido = useMemo(() => {
+    return stockBajo
+      .map((p) => {
+        const raw = cantidadesPedido[p.id]
+        const n = raw === undefined || raw === '' ? 0 : Number(raw)
+        return { producto: p, cantidad: Number.isFinite(n) ? n : 0 }
+      })
+      .filter((it) => it.cantidad > 0)
+  }, [stockBajo, cantidadesPedido])
+
+  const pedidoPorCategoria = useMemo(() => {
+    const map = new Map()
+    for (const it of itemsPedido) {
+      const cat = String(it.producto.categoria_nombre || '').trim() || 'Sin categoría'
+      if (!map.has(cat)) map.set(cat, [])
+      map.get(cat).push(it)
+    }
+    return [...map.entries()]
+      .sort(([a], [b]) => a.localeCompare(b, 'es', { sensitivity: 'base' }))
+      .map(([categoria, items]) => ({
+        categoria,
+        items: items.slice().sort((x, y) =>
+          String(x.producto.nombre || '').localeCompare(String(y.producto.nombre || ''), 'es', {
+            sensitivity: 'base'
+          })
+        )
+      }))
+  }, [itemsPedido])
+
+  useEffect(() => {
+    if (!showPreview) return
+    const onKey = (e) => {
+      if (e.key === 'Escape' && !enviandoPedido) {
+        e.preventDefault()
+        setShowPreview(false)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [showPreview, enviandoPedido])
+
+  const enviarPedido = async () => {
+    if (!itemsPedido.length || enviandoPedido) return
+    setEnviandoPedido(true)
+    setPedidoMsg(null)
+    try {
+      const { data } = await pedidosAPI.enviar({
+        items: itemsPedido.map((it) => ({ id: it.producto.id, cantidad: it.cantidad }))
+      })
+      setCantidadesPedido({})
+      setShowPreview(false)
+      setPedidoMsg({
+        tipo: 'ok',
+        texto: `Pedido enviado a ${data.email_destino} (${data.productos} producto${
+          data.productos === 1 ? '' : 's'
+        }).`
+      })
+    } catch (error) {
+      setPedidoMsg({
+        tipo: 'error',
+        texto: error.response?.data?.error || 'No se pudo enviar el pedido.'
+      })
+    } finally {
+      setEnviandoPedido(false)
+    }
+  }
 
   const listaManual = useMemo(
     () =>
@@ -296,7 +392,7 @@ const Faltantes = () => {
           Faltantes
         </h2>
         <p className="page-subtitle">
-          Anotá productos faltantes o revisá el listado de productos con stock bajo.
+          Anotá productos faltantes o armá el pedido desde el stock bajo.
         </p>
       </header>
 
@@ -606,14 +702,25 @@ const Faltantes = () => {
                         : `${stockBajo.length} producto(s) en o por debajo del mínimo`}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={loadStockBajo}
-                disabled={loadingStock}
-                className="px-3 py-2 rounded-lg text-sm font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 disabled:opacity-50"
-              >
-                Actualizar
-              </button>
+              <div className="flex flex-wrap gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowPreview(true)}
+                  disabled={!itemsPedido.length}
+                  className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Eye size={16} />
+                  {itemsPedido.length ? `Vista previa (${itemsPedido.length})` : 'Vista previa'}
+                </button>
+                <button
+                  type="button"
+                  onClick={loadStockBajo}
+                  disabled={loadingStock}
+                  className="px-3 py-2 rounded-lg text-sm font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 disabled:opacity-50"
+                >
+                  Actualizar
+                </button>
+              </div>
             </div>
             <div className="relative">
               <Search
@@ -629,6 +736,12 @@ const Faltantes = () => {
               />
             </div>
           </div>
+
+          {pedidoMsg && pedidoMsg.tipo === 'ok' && (
+            <div className="mx-4 mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+              {pedidoMsg.texto}
+            </div>
+          )}
 
           {errorStock && !loadingStock ? (
             <div className="py-12 text-center text-amber-800 text-sm">{errorStock}</div>
@@ -655,13 +768,17 @@ const Faltantes = () => {
                       <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
                         Stock
                       </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                        Mínimo
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase w-48">
+                        <span className="sm:hidden">Pedir</span>
+                        <span className="hidden sm:inline">Cantidad a pedir</span>
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {stockBajoPagina.map((p) => (
+                    {stockBajoPagina.map((p) => {
+                      const decimal = esVentaPorMedidaDecimal(p.unidad_medida)
+                      const qty = cantidadPedidoDe(p)
+                      return (
                       <tr key={p.id} className="hover:bg-amber-50/40">
                         <td className="px-4 py-3 text-sm font-medium text-gray-900">{p.nombre}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
@@ -681,13 +798,50 @@ const Faltantes = () => {
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-red-600 tabular-nums">
                           {fmtCantidadStock(p.stock_actual, p.unidad_medida)}
                         </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-600 tabular-nums">
-                          {Number(p.stock_minimo) > 0
-                            ? fmtCantidadStock(p.stock_minimo, p.unidad_medida)
-                            : '—'}
+                        <td className="px-2 sm:px-4 py-2 sm:py-3">
+                          <div className="flex items-center justify-center gap-0.5 sm:gap-2">
+                            <button
+                              type="button"
+                              onClick={() => cambiarCantidadPedido(p, -1)}
+                              disabled={qty <= 0}
+                              className="p-1 sm:p-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                              aria-label={`Restar ${p.nombre}`}
+                            >
+                              <Minus size={14} />
+                            </button>
+                            <input
+                              type="number"
+                              min="0"
+                              step={decimal ? '0.1' : '1'}
+                              value={cantidadesPedido[p.id] === undefined ? 0 : cantidadesPedido[p.id]}
+                              onChange={(e) => {
+                                const raw = e.target.value
+                                if (raw === '') {
+                                  setCantidadesPedido((prev) => ({ ...prev, [p.id]: '' }))
+                                  return
+                                }
+                                setCantidadPedido(p, raw.replace(',', '.'))
+                              }}
+                              onBlur={() => {
+                                if (cantidadesPedido[p.id] === '' || cantidadesPedido[p.id] === undefined) {
+                                  setCantidadPedido(p, 0)
+                                }
+                              }}
+                              className="w-11 sm:w-20 min-w-0 text-center py-1 sm:py-1.5 border border-gray-300 rounded-lg text-xs sm:text-sm tabular-nums"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => cambiarCantidadPedido(p, 1)}
+                              className="p-1 sm:p-1.5 rounded-lg border border-gray-300 hover:bg-gray-50"
+                              aria-label={`Sumar ${p.nombre}`}
+                            >
+                              <Plus size={14} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
-                    ))}
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -721,6 +875,98 @@ const Faltantes = () => {
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {showPreview && (
+        <div
+          className="modal-scrim fixed inset-0 z-[90] flex items-center justify-center p-4"
+          onClick={() => !enviandoPedido && setShowPreview(false)}
+          role="presentation"
+        >
+          <div
+            className="modal-panel max-w-2xl w-full flex flex-col max-h-[90vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pedido-preview-titulo"
+          >
+            <div className="px-5 py-4 border-b flex items-center justify-between gap-3 shrink-0">
+              <div>
+                <h3 id="pedido-preview-titulo" className="text-lg font-semibold text-gray-900">
+                  Pedido
+                </h3>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  {itemsPedido.length} producto(s) · ordenado por categoría
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => !enviandoPedido && setShowPreview(false)}
+                className="p-2 rounded-lg text-gray-500 hover:bg-gray-100"
+                aria-label="Cerrar"
+                disabled={enviandoPedido}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="px-5 py-4 overflow-y-auto flex-1 min-h-0 space-y-4">
+              {pedidoPorCategoria.map(({ categoria, items }) => (
+                <div key={categoria}>
+                  <div className="flex items-center justify-between gap-2 rounded-lg bg-gray-100 px-3 py-2">
+                    <p className="text-sm font-bold uppercase tracking-wide text-gray-800 text-center flex-1">
+                      {categoria}
+                    </p>
+                    <span className="text-xs text-gray-500 shrink-0">{items.length} prod.</span>
+                  </div>
+                  <div className="mt-1 border-b border-gray-200 pb-1 flex justify-between text-xs font-semibold text-gray-500 uppercase">
+                    <span>Producto</span>
+                    <span>Cantidad</span>
+                  </div>
+                  <ul className="divide-y divide-gray-100">
+                    {items.map((it) => (
+                      <li
+                        key={it.producto.id}
+                        className="py-2 flex items-start justify-between gap-4 text-sm"
+                      >
+                        <span className="text-gray-900 min-w-0">{it.producto.nombre}</span>
+                        <span className="tabular-nums text-gray-900 shrink-0">
+                          {fmtCantidadStock(it.cantidad, it.producto.unidad_medida)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+
+            {pedidoMsg?.tipo === 'error' && (
+              <div className="mx-5 mb-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-800">
+                {pedidoMsg.texto}
+              </div>
+            )}
+
+            <div className="px-5 py-4 border-t flex flex-col-reverse sm:flex-row sm:justify-end gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowPreview(false)}
+                disabled={enviandoPedido}
+                className="px-4 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-semibold text-sm hover:bg-gray-50 disabled:opacity-50"
+              >
+                Volver
+              </button>
+              <button
+                type="button"
+                onClick={enviarPedido}
+                disabled={!itemsPedido.length || enviandoPedido}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-sky-600 text-white font-semibold text-sm hover:bg-sky-700 disabled:opacity-50"
+              >
+                <Send size={16} />
+                {enviandoPedido ? 'Enviando…' : 'Enviar pedido'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

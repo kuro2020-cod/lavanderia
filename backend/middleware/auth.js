@@ -19,6 +19,10 @@ export async function authenticate(req, res, next) {
 
   req.accesoExterno = esAccesoDesdeFuera(req);
   try {
+    const activo = await Usuario.estaActivo(req.user.id);
+    if (!activo) {
+      return res.status(401).json({ error: 'Sesión inválida o expirada' });
+    }
     if (req.accesoExterno) {
       const permitido = await Usuario.permiteAccesoExterno(req.user.id);
       if (!permitido) {

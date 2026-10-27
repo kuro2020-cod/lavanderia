@@ -17,6 +17,7 @@ export class Usuario {
     return db.all(`
       SELECT id, nombre, apellido, dni, usuario, rol, acceso_externo
       FROM usuario
+      WHERE COALESCE(activo, TRUE) = TRUE
       ORDER BY apellido, nombre
     `);
   }
@@ -42,10 +43,10 @@ export class Usuario {
    */
   static async autenticar(usuario, clavePlano) {
     const row = await db.get(
-      `SELECT id, nombre, apellido, dni, usuario, rol, clave, acceso_externo FROM usuario WHERE LOWER(usuario) = LOWER(?)`,
+      `SELECT id, nombre, apellido, dni, usuario, rol, clave, acceso_externo, activo FROM usuario WHERE LOWER(usuario) = LOWER(?)`,
       [String(usuario).trim()]
     );
-    if (!row) return null;
+    if (!row || !asBool(row.activo, true)) return null;
     const plain = String(clavePlano);
     let ok = false;
     try {
@@ -171,15 +172,52 @@ export class Usuario {
     return this.getById(id);
   }
 
+  static async estaActivo(id) {
+    const row = await db.get(`SELECT activo FROM usuario WHERE id = ?`, [id]);
+    if (!row) return false;
+    return asBool(row.activo, true);
+  }
+
   static async delete(id, actor = null) {
-    const existente = await db.get('SELECT rol FROM usuario WHERE id = ?', [id]);
+    const existente = await db.get(
+      'SELECT id, rol, usuario, dni, activo FROM usuario WHERE id = ?',
+      [id]
+    );
     if (!existente) {
       throw new Error('Usuario no encontrado');
+    }
+    if (actor?.id != null && Number(actor.id) === Number(id)) {
+      throw new Error('No podés ocultar tu propio usuario');
     }
     if (esRolSuper(existente.rol) && !esRolSuper(actor?.rol)) {
       throw new Error('No se puede eliminar este usuario');
     }
-    await db.run('DELETE FROM usuario WHERE id = ?', [id]);
+    if (!asBool(existente.activo, true)) {
+      return { success: true };
+    }
+
+    const marca = `__baja_${id}`;
+    const usuarioOculto = `${existente.usuario}${marca}`.slice(0, 100);
+    const dniOculto = `${existente.dni}${marca}`.slice(0, 32);
+
+    await db.transaction(async ({ run }) => {
+      await run(
+        `
+        UPDATE aperturas_caja
+        SET abierta = FALSE
+        WHERE usuario_id = ? AND abierta = TRUE
+      `,
+        [id]
+      );
+      await run(
+        `
+        UPDATE usuario
+        SET activo = FALSE, usuario = ?, dni = ?
+        WHERE id = ?
+      `,
+        [usuarioOculto, dniOculto, id]
+      );
+    });
     return { success: true };
   }
 }

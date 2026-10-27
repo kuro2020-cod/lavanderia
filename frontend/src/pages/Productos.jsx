@@ -82,9 +82,11 @@ const Productos = () => {
     }
     document.addEventListener('visibilitychange', recargar)
     window.addEventListener('focus', recargar)
+    const timer = window.setInterval(recargar, 20000)
     return () => {
       document.removeEventListener('visibilitychange', recargar)
       window.removeEventListener('focus', recargar)
+      window.clearInterval(timer)
     }
   }, [])
 

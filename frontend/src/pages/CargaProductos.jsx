@@ -48,8 +48,18 @@ const CargaProductos = () => {
   }, [])
 
   useEffect(() => {
-    if (modo === 'manual') {
-      loadListaProductos()
+    if (modo !== 'manual') return undefined
+    loadListaProductos()
+    const recargar = () => {
+      if (document.visibilityState === 'visible') loadListaProductos()
+    }
+    document.addEventListener('visibilitychange', recargar)
+    window.addEventListener('focus', recargar)
+    const timer = window.setInterval(recargar, 20000)
+    return () => {
+      document.removeEventListener('visibilitychange', recargar)
+      window.removeEventListener('focus', recargar)
+      window.clearInterval(timer)
     }
   }, [modo, loadListaProductos])
 

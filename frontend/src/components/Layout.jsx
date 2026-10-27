@@ -20,7 +20,6 @@ import {
   PackageMinus,
   AlertTriangle,
   ClipboardList,
-  ClipboardCheck,
   Banknote,
   BookUser,
   Landmark,
@@ -99,7 +98,6 @@ const Layout = ({ children }) => {
       icon: Package,
       children: [
         { path: '/carga-productos', icon: ScanBarcode, label: 'Carga de productos' },
-        { path: '/pedidos', icon: ClipboardCheck, label: 'Pedidos' },
         { path: '/productos', icon: Package, label: 'Productos', adminOnly: true },
         { path: '/categorias', icon: FolderTree, label: 'Categorías', adminOnly: true },
         { path: '/baja-productos', icon: PackageMinus, label: 'Baja de productos', adminOnly: true },

@@ -26,7 +26,6 @@ import Fiados from './pages/Fiados'
 import Faltantes from './pages/Faltantes'
 import Asistente from './pages/Asistente'
 import MercadoPago from './pages/MercadoPago'
-import Pedidos from './pages/Pedidos'
 import Vencimientos from './pages/Vencimientos'
 import LoadingScreen from './components/ui/LoadingScreen'
 import { esAccesoLimitado, rutaHome } from './utils/acceso'
@@ -67,7 +66,7 @@ function AppRoutes() {
         />
         <Route path="/promociones" element={<Promociones />} />
         <Route path="/carga-productos" element={<CargaProductos />} />
-        <Route path="/pedidos" element={<Pedidos />} />
+        <Route path="/pedidos" element={<Navigate to="/faltantes?tab=stock_bajo" replace />} />
         <Route path="/vencimientos" element={<Vencimientos />} />
         <Route
           path="/baja-productos"

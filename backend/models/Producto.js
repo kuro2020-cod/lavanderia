@@ -21,6 +21,12 @@ function diasHasta(hoyISO, fechaISO) {
 
 const round4 = (n) => Math.round(Number(n) * 10000) / 10000;
 
+function etiquetaUsuario(authUser) {
+  if (!authUser) return 'Sistema';
+  const label = [authUser.apellido, authUser.nombre].filter(Boolean).join(', ').trim();
+  return label || authUser.usuario || 'Sistema';
+}
+
 function esFlagActivo(v) {
   if (v === true || v === 1) return true;
   if (v === false || v === 0 || v == null || v === '') return false;
@@ -161,7 +167,7 @@ export class Producto {
     return this.getById(result.lastID);
   }
 
-  static async update(id, productoData) {
+  static async update(id, productoData, authUser = null) {
     const { codigo, nombre, descripcion, categoria_id, precio_compra, precio_venta, stock_actual, stock_minimo, unidad_medida, no_controla_stock, no_verifica_vencimiento } = productoData;
     const noControla = esFlagActivo(no_controla_stock);
     const noVerifica = esFlagActivo(no_verifica_vencimiento);
@@ -200,10 +206,9 @@ export class Producto {
       productoData.stock_base !== null &&
       productoData.stock_base !== '';
     const tocarMinimo = Object.prototype.hasOwnProperty.call(productoData, 'stock_minimo');
-    // Si el formulario no cambió el stock, no se reescribe: una carga hecha por otro
-    // usuario en el medio no se pierde al guardar precios, categoría o vencimiento.
+    // Sin stock_base no se pisa el stock: un formulario abierto a la mañana
+    // no puede borrar la mercadería que cargó otro usuario a la tarde.
     let delta = null;
-    let absoluto = null;
     if (!noControla && tocarStock && tieneBase) {
       const nuevo = Number(stock_actual);
       const base = Number(productoData.stock_base);
@@ -211,11 +216,13 @@ export class Producto {
         throw new Error('El stock no puede ser negativo');
       }
       delta = round4(nuevo - base);
-    } else if (!noControla && tocarStock) {
-      absoluto = Number(stock_actual);
-      if (Number.isNaN(absoluto) || absoluto < 0) {
-        throw new Error('El stock no puede ser negativo');
-      }
+    }
+    const qtyIngresoRaw = productoData.cantidad_ingreso;
+    const qtyIngreso =
+      qtyIngresoRaw == null || qtyIngresoRaw === '' ? 0 : Number(String(qtyIngresoRaw).replace(',', '.'));
+    const sumarIngreso = !noControla && Number.isFinite(qtyIngreso) && qtyIngreso > 0;
+    if (sumarIngreso && qtyIngreso > 1000000) {
+      throw new Error('La cantidad a ingresar no es válida');
     }
     const sm = noControla
       ? 0
@@ -239,18 +246,26 @@ export class Producto {
       if (!locked) {
         throw new Error('Producto no encontrado');
       }
-      let sa;
+      let sa = Number(locked.stock_actual);
       if (noControla) {
         sa = 0;
       } else if (delta != null) {
-        sa = round4(Number(locked.stock_actual) + delta);
-      } else if (absoluto != null) {
-        sa = absoluto;
-      } else {
-        sa = Number(locked.stock_actual);
+        sa = round4(sa + delta);
+      }
+      if (sumarIngreso) {
+        sa = round4(sa + qtyIngreso);
       }
       if (Number.isNaN(sa) || sa < 0) {
         throw new Error('El stock no puede ser negativo');
+      }
+      if (sumarIngreso) {
+        await run(
+          `
+          INSERT INTO movimientos (producto_id, tipo, cantidad, motivo, usuario, precio_unitario, metodo_pago)
+          VALUES (?, 'entrada', ?, 'Carga manual', ?, NULL, NULL)
+        `,
+          [id, round4(qtyIngreso), etiquetaUsuario(authUser)]
+        );
       }
       await run(
         `

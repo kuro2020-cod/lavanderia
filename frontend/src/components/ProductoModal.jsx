@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { productosAPI, categoriasAPI, movimientosAPI } from '../services/api'
+import { productosAPI, categoriasAPI } from '../services/api'
 import { X } from 'lucide-react'
 import {
   esUnidadKg,
@@ -270,15 +270,6 @@ const ProductoModal = ({
         }
         if (existente) {
           const qty = cantidadIngresoANumero(formData.cantidad_ingreso)
-          if (qty > 0 && !noControla) {
-            await movimientosAPI.create({
-              producto_id: existente.id,
-              tipo: 'entrada',
-              cantidad: qty,
-              motivo: 'Carga manual',
-              usuario: 'Usuario'
-            })
-          }
           await productosAPI.update(existente.id, {
             codigo: existente.codigo,
             nombre: (formData.nombre || existente.nombre || '').trim(),
@@ -290,7 +281,8 @@ const ProductoModal = ({
             unidad_medida: formData.unidad_medida || 'unidad',
             no_controla_stock: noControla,
             no_verifica_vencimiento: noVerifica,
-            fecha_vencimiento: fechaVenc
+            fecha_vencimiento: fechaVenc,
+            ...(qty > 0 && !noControla ? { cantidad_ingreso: qty } : {})
           })
           if (inline) await reiniciarFormularioCarga()
           onIngresoAutomatico?.()
@@ -371,20 +363,7 @@ const ProductoModal = ({
           const { data } = await productosAPI.getByCodigo(codigoTrim)
           if (cargaProductos && !producto) {
             const qty = cantidadIngresoANumero(formData.cantidad_ingreso)
-            if (qty > 0) {
-              try {
-                await movimientosAPI.create({
-                  producto_id: data.id,
-                  tipo: 'entrada',
-                  cantidad: qty,
-                  motivo: 'Carga manual',
-                  usuario: 'Usuario'
-                })
-              } catch (ingErr) {
-                alert(ingErr.response?.data?.error || 'No se pudo registrar la entrada de stock')
-                return
-              }
-            }
+            const noControlaExistente = Boolean(data.no_controla_stock)
             try {
               await productosAPI.update(data.id, {
                 codigo: data.codigo,
@@ -398,12 +377,13 @@ const ProductoModal = ({
                 precio_venta: precioANumero(formData.precio_venta),
                 stock_minimo: Number(data.stock_minimo) || 0,
                 unidad_medida: formData.unidad_medida || 'unidad',
-                no_controla_stock: Boolean(data.no_controla_stock),
+                no_controla_stock: noControlaExistente,
                 no_verifica_vencimiento: Boolean(formData.no_verifica_vencimiento),
                 fecha_vencimiento:
-                  Boolean(data.no_controla_stock) || Boolean(formData.no_verifica_vencimiento)
+                  noControlaExistente || Boolean(formData.no_verifica_vencimiento)
                     ? null
-                    : fechaISOParaInput(formData.fecha_vencimiento) || null
+                    : fechaISOParaInput(formData.fecha_vencimiento) || null,
+                ...(qty > 0 && !noControlaExistente ? { cantidad_ingreso: qty } : {})
               })
             } catch (upErr) {
               alert(upErr.response?.data?.error || 'No se pudo actualizar precios y datos del producto')

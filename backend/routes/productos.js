@@ -101,7 +101,7 @@ router.put('/:id/categoria', async (req, res) => {
 // Actualizar producto
 router.put('/:id', async (req, res) => {
   try {
-    const producto = await Producto.update(req.params.id, req.body);
+    const producto = await Producto.update(req.params.id, req.body, req.user);
     if (!producto) {
       return res.status(404).json({ error: 'Producto no encontrado' });
     }
