@@ -98,7 +98,7 @@ const Layout = ({ children }) => {
       icon: Package,
       children: [
         { path: '/carga-productos', icon: ScanBarcode, label: 'Carga de productos' },
-        { path: '/productos', icon: Package, label: 'Productos', adminOnly: true },
+        { path: '/productos', icon: Package, label: 'Productos' },
         { path: '/categorias', icon: FolderTree, label: 'Categorías', adminOnly: true },
         { path: '/baja-productos', icon: PackageMinus, label: 'Baja de productos', adminOnly: true },
         { path: '/promociones', icon: Tag, label: 'Promociones' },

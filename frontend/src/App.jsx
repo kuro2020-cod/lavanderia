@@ -92,14 +92,7 @@ function AppRoutes() {
             </AdminOnly>
           }
         />
-        <Route
-          path="/productos"
-          element={
-            <AdminOnly>
-              <Productos />
-            </AdminOnly>
-          }
-        />
+        <Route path="/productos" element={<Productos />} />
         <Route
           path="/categorias"
           element={

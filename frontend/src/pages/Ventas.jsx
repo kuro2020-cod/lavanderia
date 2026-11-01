@@ -105,6 +105,39 @@ const esCategoriaCigarrillos = (categoriaNombre) =>
 const esProductoRetornable = (producto) =>
   /retornable/i.test(String(producto?.nombre || ''))
 
+const textoBusqueda = (s) =>
+  String(s ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+
+/** 0 exacto, 1 empieza con el texto, 2 es una palabra, 3 lo contiene. */
+const rankTextoBusqueda = (valor, t) => {
+  const s = textoBusqueda(valor)
+  if (!s || !t) return 9
+  if (s === t) return 0
+  if (s.startsWith(t)) return 1
+  const palabras = s.split(/[^a-z0-9]+/).filter(Boolean)
+  if (palabras.some((w) => w === t)) return 2
+  if (s.includes(t)) return 3
+  return 9
+}
+
+const rankProductoBusqueda = (p, t) => {
+  if (String(p?.id) === t) return 0
+  const porNombre = rankTextoBusqueda(p?.nombre, t)
+  const cod = textoBusqueda(p?.codigo)
+  let porCodigo = 9
+  if (cod === t) porCodigo = 0
+  else if (cod.startsWith(t)) porCodigo = 1
+  else if (cod.includes(t)) porCodigo = 4
+  return Math.min(porNombre, porCodigo)
+}
+
+const compararPorBusqueda = (rankA, nombreA, rankB, nombreB) =>
+  rankA - rankB || textoBusqueda(nombreA).localeCompare(textoBusqueda(nombreB), 'es')
+
 const esProductoSistemaEnvase = (producto) => {
   const cod = String(producto?.codigo || '')
     .trim()
@@ -790,60 +823,57 @@ const Ventas = () => {
 
   /** Resultados de búsqueda: promociones vigentes + productos. */
   const filtered = useMemo(() => {
-    const t = searchTerm.trim().toLowerCase()
+    const t = textoBusqueda(searchTerm)
     if (!t) return []
 
     const promos = (promocionesActivas || [])
       .filter((pr) => promoVigente(pr) && promoTieneItems(pr))
-      .filter((pr) => {
-        const nom = String(pr.nombre || '').toLowerCase()
-        const desc = String(pr.descripcion || '').toLowerCase()
-        const incluye = textoIncluyeItemsPromo(pr).toLowerCase()
-        return nom.includes(t) || desc.includes(t) || incluye.includes(t)
-      })
-      .slice(0, 8)
       .map((pr) => ({
         kind: 'promo',
         key: `promo-${pr.id}`,
-        promo: pr
+        promo: pr,
+        rank: Math.min(
+          rankTextoBusqueda(pr.nombre, t),
+          rankTextoBusqueda(pr.descripcion, t),
+          rankTextoBusqueda(textoIncluyeItemsPromo(pr), t)
+        )
       }))
+      .filter((item) => item.rank < 9)
 
     const prods = productos
       .filter((p) => !esProductoSistemaEnvase(p))
-      .filter(
-        (p) =>
-          p.nombre?.toLowerCase().includes(t) ||
-          String(p.codigo || '')
-            .toLowerCase()
-            .includes(t) ||
-          String(p.id) === t
-      )
-      .slice(0, Math.max(4, 12 - promos.length))
       .map((p) => ({
         kind: 'producto',
         key: `prod-${p.id}`,
-        producto: p
+        producto: p,
+        rank: rankProductoBusqueda(p, t)
       }))
+      .filter((item) => item.rank < 9)
 
-    return [...promos, ...prods].slice(0, 14)
+    return [...promos, ...prods]
+      .sort((a, b) =>
+        compararPorBusqueda(
+          a.rank,
+          a.kind === 'promo' ? a.promo.nombre : a.producto.nombre,
+          b.rank,
+          b.kind === 'promo' ? b.promo.nombre : b.producto.nombre
+        )
+      )
+      .slice(0, 14)
   }, [productos, searchTerm, promocionesActivas])
 
   const sugerenciasVisibles = mostrarSugerencias && searchTerm.trim().length > 0 && filtered.length > 0
 
   const productosConsulta = useMemo(() => {
     const base = productos.filter((p) => !esProductoSistemaEnvase(p))
-    const t = consultaTerm.trim().toLowerCase()
+    const t = textoBusqueda(consultaTerm)
     if (!t) return base.slice(0, 80)
     return base
-      .filter(
-        (p) =>
-          p.nombre?.toLowerCase().includes(t) ||
-          String(p.codigo || '')
-            .toLowerCase()
-            .includes(t) ||
-          String(p.id) === t
-      )
+      .map((p) => ({ p, rank: rankProductoBusqueda(p, t) }))
+      .filter((item) => item.rank < 9)
+      .sort((a, b) => compararPorBusqueda(a.rank, a.p.nombre, b.rank, b.p.nombre))
       .slice(0, 80)
+      .map((item) => item.p)
   }, [productos, consultaTerm])
 
   const abrirConsultar = () => {

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { productosAPI, categoriasAPI } from '../services/api'
+import { useAuth } from '../context/AuthContext'
+import { esRolAdmin } from '../utils/roles'
 import CategoriaProductoSelect from '../components/CategoriaProductoSelect'
 import { Edit, Trash2, Package, Search, ChevronUp, ChevronDown } from 'lucide-react'
 import ProductoModal from '../components/ProductoModal'
@@ -58,6 +60,8 @@ const COLUMNAS_ORDEN = [
 const ITEMS_POR_PAGINA = 10
 
 const Productos = () => {
+  const { user } = useAuth()
+  const esAdmin = esRolAdmin(user?.rol)
   const [productos, setProductos] = useState([])
   const [productosFiltrados, setProductosFiltrados] = useState([])
   const [categorias, setCategorias] = useState([])
@@ -406,13 +410,15 @@ const Productos = () => {
                         >
                           <Edit size={18} />
                         </button>
-                        <button
-                          onClick={() => handleDelete(producto.id)}
-                          className="text-red-600 hover:text-red-900"
-                          title="Eliminar"
-                        >
-                          <Trash2 size={18} />
-                        </button>
+                        {esAdmin && (
+                          <button
+                            onClick={() => handleDelete(producto.id)}
+                            className="text-red-600 hover:text-red-900"
+                            title="Eliminar"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
