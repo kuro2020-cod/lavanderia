@@ -6,45 +6,23 @@ const fmtMoney = (n) =>
 
 /**
  * Modal obligatorio de inicio de caja al entrar a Ventas.
- * USER: monto fijo = fondo del turno anterior (no editable).
- * ADMIN: puede modificar el monto.
+ * Cualquier usuario puede cambiar el fondo sugerido del turno anterior.
  */
-export default function InicioCajaModal({
-  sugerido = null,
-  onConfirm,
-  submitting,
-  puedeEditarMonto = true
-}) {
-  const [monto, setMonto] = useState(() => {
-    if (!puedeEditarMonto) {
-      return sugerido != null && Number(sugerido) >= 0 ? String(sugerido) : '0'
-    }
-    return sugerido != null && Number(sugerido) >= 0 ? String(sugerido) : ''
-  })
+export default function InicioCajaModal({ sugerido = null, onConfirm, submitting }) {
+  const [monto, setMonto] = useState(() =>
+    sugerido != null && Number(sugerido) >= 0 ? String(sugerido) : ''
+  )
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!puedeEditarMonto) {
-      setMonto(sugerido != null && Number(sugerido) >= 0 ? String(sugerido) : '0')
-      return
-    }
     if (sugerido != null && Number(sugerido) >= 0 && String(monto).trim() === '') {
       setMonto(String(sugerido))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sugerido, puedeEditarMonto])
+  }, [sugerido])
 
   const confirmar = () => {
     setError('')
-    if (!puedeEditarMonto) {
-      const fijo =
-        sugerido != null && Number.isFinite(Number(sugerido)) && Number(sugerido) >= 0
-          ? Number(sugerido)
-          : 0
-      onConfirm(Math.round(fijo * 100) / 100)
-      return
-    }
-
     const raw = String(monto)
       .trim()
       .replace(',', '.')
@@ -78,9 +56,7 @@ export default function InicioCajaModal({
             Inicio de caja
           </h3>
           <p className="text-sm text-emerald-50/95 mt-1">
-            {puedeEditarMonto
-              ? 'Indicá con cuánto efectivo cuenta la caja al comenzar el turno.'
-              : 'Confirmá el inicio de caja con el fondo dejado por el turno anterior.'}
+            Indicá con cuánto efectivo cuenta la caja al comenzar el turno.
           </p>
         </div>
 
@@ -102,26 +78,17 @@ export default function InicioCajaModal({
               min="0"
               step="0.01"
               inputMode="decimal"
-              autoFocus={puedeEditarMonto}
-              readOnly={!puedeEditarMonto}
-              tabIndex={puedeEditarMonto ? 0 : -1}
+              autoFocus
               placeholder="0,00"
               value={monto}
-              onChange={(e) => {
-                if (!puedeEditarMonto) return
-                setMonto(e.target.value)
-              }}
+              onChange={(e) => setMonto(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault()
                   confirmar()
                 }
               }}
-              className={`w-full px-3 py-2.5 border-2 rounded-xl text-lg font-semibold tabular-nums ${
-                puedeEditarMonto
-                  ? 'border-emerald-200 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 bg-white'
-                  : 'border-gray-200 bg-gray-100 text-gray-700 cursor-not-allowed'
-              }`}
+              className="w-full px-3 py-2.5 border-2 rounded-xl text-lg font-semibold tabular-nums border-emerald-200 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 bg-white"
             />
           </div>
 
@@ -132,9 +99,7 @@ export default function InicioCajaModal({
             </p>
           ) : (
             <p className="text-[11px] text-gray-500">
-              {puedeEditarMonto
-                ? 'Este monto quedará registrado y se mostrará al cerrar la caja.'
-                : 'El monto no se puede modificar. Solo un administrador puede cambiarlo.'}
+              Si lo cambiás respecto del turno anterior, esa modificación queda detallada en el cierre de caja.
             </p>
           )}
 

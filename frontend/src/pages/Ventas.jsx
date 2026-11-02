@@ -2221,7 +2221,6 @@ const Ventas = () => {
             sugerido={sugeridoCaja}
             onConfirm={confirmarInicioCaja}
             submitting={abriendoCaja}
-            puedeEditarMonto={!esVendedorSolo}
           />
         )}
         Cargando productos…
@@ -2236,7 +2235,6 @@ const Ventas = () => {
           sugerido={sugeridoCaja}
           onConfirm={confirmarInicioCaja}
           submitting={abriendoCaja}
-          puedeEditarMonto={!esVendedorSolo}
         />
       )}
 

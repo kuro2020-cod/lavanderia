@@ -5,7 +5,6 @@ import { fechaLocalISO, normalizarFechaISO } from '../utils/fechaCaja.js';
 import { getResumenCaja, aplicarAjusteFondoCaja } from '../services/resumenCaja.js';
 import { AperturaCaja } from '../models/AperturaCaja.js';
 import { esUsuarioVendedor } from '../utils/usuarioAliases.js';
-import { esRolAdmin } from '../utils/roles.js';
 
 const router = express.Router();
 
@@ -190,11 +189,8 @@ router.post('/cerrar', async (req, res) => {
     }
 
     const fondoRaw = req.body.fondo_siguiente;
-    const esAdmin = esRolAdmin(req.user?.rol);
-    // USER siempre deja el mismo monto de apertura; solo ADMIN puede cambiarlo.
-    const fondo = !esAdmin
-      ? round2(apertura.monto_apertura)
-      : fondoRaw === undefined || fondoRaw === null || fondoRaw === ''
+    const fondo =
+      fondoRaw === undefined || fondoRaw === null || fondoRaw === ''
         ? round2(apertura.monto_apertura)
         : round2(fondoRaw);
     if (!Number.isFinite(fondo) || fondo < 0) {
@@ -204,10 +200,21 @@ router.post('/cerrar', async (req, res) => {
     }
 
     const resumenBase = await getResumenCaja(fecha, { authUser: req.user });
+    const montoSugerido = apertura.monto_sugerido == null ? null : round2(apertura.monto_sugerido);
+    const aperturaModificada =
+      montoSugerido != null && Math.abs(montoSugerido - round2(apertura.monto_apertura)) > 0.009;
+    const cierreModificado = Math.abs(fondo - round2(apertura.monto_apertura)) > 0.009;
     const resumen = aplicarAjusteFondoCaja(resumenBase, apertura.monto_apertura, fondo, {
       apertura_id: apertura.id,
       registrado_por: apertura.registrado_por,
-      apertura_at: apertura.created_at
+      apertura_at: apertura.created_at,
+      monto_sugerido: montoSugerido,
+      apertura_modificada: aperturaModificada,
+      diferencia_apertura: aperturaModificada
+        ? round2(apertura.monto_apertura - montoSugerido)
+        : 0,
+      cierre_modificado: cierreModificado,
+      cerrado_por: cerradoPor
     });
     const detalle = JSON.stringify(resumen.detalleCierre || { v: 2 });
 

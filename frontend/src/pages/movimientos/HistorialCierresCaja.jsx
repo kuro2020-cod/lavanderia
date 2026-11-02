@@ -12,7 +12,7 @@ import {
   bloqueAperturaCajaHtml,
   formatFechaCaja
 } from './cierreHelpers'
-import { esDetalleCierreV2, claseMontoNeto, extraRubroCierre, lineasRubrosCierre, formatAperturaCajaHora } from '../../utils/cierreCajaDisplay'
+import { esDetalleCierreV2, claseMontoNeto, extraRubroCierre, lineasRubrosCierre, formatAperturaCajaHora, detalleModificacionesCaja } from '../../utils/cierreCajaDisplay'
 
 const ITEMS_PAGE = 20
 
@@ -297,6 +297,16 @@ const HistorialCierresCaja = () => {
           letter-spacing:.06em;
           color:#047857;
         }
+        .apertura-mod{
+          margin:0 0 8px;
+          padding:8px 10px;
+          background:#fffbeb;
+          border:1px solid #fcd34d;
+          border-radius:10px;
+          font-size:13px;
+          line-height:1.4;
+          color:#78350f;
+        }
         .apertura-grid{
           display:grid;
           grid-template-columns:1fr;
@@ -572,6 +582,28 @@ const HistorialCierresCaja = () => {
                               <p className="text-xs font-bold uppercase tracking-wide text-emerald-800 mb-2">
                                 Inicio / fondo de caja
                               </p>
+                              {detalleModificacionesCaja(det.apertura_caja).map((mod) => (
+                                <p
+                                  key={mod.tipo}
+                                  className="mb-2 text-sm leading-relaxed rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-950"
+                                >
+                                  <strong>
+                                    {mod.tipo === 'apertura' ? 'Apertura modificada.' : 'Cierre modificado.'}
+                                  </strong>{' '}
+                                  {mod.tipo === 'apertura'
+                                    ? 'El turno anterior dejó'
+                                    : 'La apertura fue'}{' '}
+                                  <strong className="tabular-nums">{fmtMoney(mod.anterior)}</strong> y{' '}
+                                  {mod.tipo === 'apertura' ? 'se abrió con' : 'se dejan'}{' '}
+                                  <strong className="tabular-nums">{fmtMoney(mod.nuevo)}</strong>
+                                  {mod.tipo === 'cierre' ? '. Ajuste al efectivo: ' : '. Diferencia: '}
+                                  <strong className="tabular-nums">
+                                    {mod.diferencia > 0 ? '+' : ''}
+                                    {fmtMoney(mod.diferencia)}
+                                  </strong>
+                                  {mod.quien ? `. Lo cambió ${mod.quien}.` : '.'}
+                                </p>
+                              ))}
                               {formatAperturaCajaHora(det.apertura_caja) && (
                                 <p className="mb-2 text-base sm:text-lg text-emerald-900">
                                   <strong>Apertura de caja:</strong>{' '}

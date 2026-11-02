@@ -408,6 +408,10 @@ const initDatabase = async () => {
         ON aperturas_caja(usuario_id)
         WHERE abierta = TRUE
     `);
+    await query(`
+      ALTER TABLE aperturas_caja
+      ADD COLUMN IF NOT EXISTS monto_sugerido NUMERIC(14, 2)
+    `);
 
     await query(`
       CREATE TABLE IF NOT EXISTS pagos_proveedores (

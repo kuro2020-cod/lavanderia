@@ -3,7 +3,6 @@ import { useLocation } from 'react-router-dom'
 import { Banknote, Calendar, CheckCircle2, Printer, AlertCircle } from 'lucide-react'
 import { cierreCajaAPI } from '../services/api'
 import { useAuth } from '../context/AuthContext'
-import { esRolAdmin } from '../utils/roles'
 import { hoyLocalISO } from '../utils/fechas'
 import { claseMontoNeto, extraRubroCierre, SUBTITULO_RUBROS_CIERRE } from '../utils/cierreCajaDisplay'
 import ContadorCafeMaquina from '../components/ContadorCafeMaquina'
@@ -50,14 +49,13 @@ const TarjetaMetodo = ({ titulo, subtitulo, metodos, keys, colorClass = 'text-gr
 
 const CierreCaja = () => {
   const location = useLocation()
-  const { marcarCajaCerrada, cajaBloqueada, user } = useAuth()
-  const esAdmin = esRolAdmin(user?.rol)
+  const { marcarCajaCerrada, cajaBloqueada } = useAuth()
   const [fecha, setFecha] = useState(() => hoyLocalISO())
   const [resumen, setResumen] = useState(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [observaciones, setObservaciones] = useState('')
-  /** 'mismo' = dejar el monto de apertura; 'otro' = monto distinto (solo ADMIN) */
+  /** 'mismo' = dejar el monto de apertura; 'otro' = monto distinto */
   const [fondoModo, setFondoModo] = useState('mismo')
   const [fondoOtro, setFondoOtro] = useState('')
 
@@ -73,21 +71,26 @@ const CierreCaja = () => {
     aperturaAbierta?.monto_apertura != null ? Number(aperturaAbierta.monto_apertura) : null
   const hayInicioCaja = Boolean(aperturaAbierta)
 
+  const montoSugerido =
+    aperturaAbierta?.monto_sugerido != null ? Number(aperturaAbierta.monto_sugerido) : null
+  const aperturaModificada =
+    montoSugerido != null &&
+    montoApertura != null &&
+    Math.abs(montoSugerido - montoApertura) > 0.009
+  const diferenciaApertura = aperturaModificada
+    ? Math.round((montoApertura - montoSugerido) * 100) / 100
+    : 0
+
   const fondoPreview = useMemo(() => {
     if (!hayInicioCaja || montoApertura == null) return null
-    // USER siempre deja el mismo monto de apertura.
-    if (!esAdmin || fondoModo === 'mismo') return Math.round(montoApertura * 100) / 100
+    if (fondoModo === 'mismo') return Math.round(montoApertura * 100) / 100
     const raw = String(fondoOtro)
       .trim()
       .replace(',', '.')
     const n = parseFloat(raw)
     if (!Number.isFinite(n) || n < 0) return null
     return Math.round(n * 100) / 100
-  }, [hayInicioCaja, montoApertura, fondoModo, fondoOtro, esAdmin])
-
-  useEffect(() => {
-    if (!esAdmin) setFondoModo('mismo')
-  }, [esAdmin])
+  }, [hayInicioCaja, montoApertura, fondoModo, fondoOtro])
 
   const diferenciaFondo = useMemo(() => {
     if (fondoPreview == null || montoApertura == null) return 0
@@ -391,7 +394,37 @@ const CierreCaja = () => {
                 </p>
               )}
 
-              {esAdmin && (
+              {(aperturaModificada || diferenciaFondo !== 0) && (
+                <div className="mt-3 space-y-2">
+                  {aperturaModificada && (
+                    <p className="text-sm leading-relaxed rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-950">
+                      <strong>Apertura modificada.</strong> El turno anterior dejó{' '}
+                      <strong className="tabular-nums">{fmtMoney(montoSugerido)}</strong> y se abrió con{' '}
+                      <strong className="tabular-nums">{fmtMoney(montoApertura)}</strong>. Diferencia:{' '}
+                      <strong className="tabular-nums">
+                        {diferenciaApertura > 0 ? '+' : ''}
+                        {fmtMoney(diferenciaApertura)}
+                      </strong>
+                      {aperturaAbierta?.registrado_por
+                        ? `. Lo cambió ${aperturaAbierta.registrado_por}.`
+                        : '.'}
+                    </p>
+                  )}
+                  {diferenciaFondo !== 0 && fondoPreview != null && (
+                    <p className="text-sm leading-relaxed rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-950">
+                      <strong>Cierre modificado.</strong> La apertura fue{' '}
+                      <strong className="tabular-nums">{fmtMoney(montoApertura)}</strong> y se dejan{' '}
+                      <strong className="tabular-nums">{fmtMoney(fondoPreview)}</strong>. Ajuste al efectivo:{' '}
+                      <strong className="tabular-nums">
+                        {diferenciaFondo > 0 ? '+' : ''}
+                        {fmtMoney(diferenciaFondo)}
+                      </strong>
+                      .
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="mt-4 pt-3 border-t border-emerald-200/80 print:hidden space-y-3">
                 <p className="text-xs font-semibold text-emerald-900">
                   ¿Cuánto dejás en caja para el siguiente turno?
@@ -476,15 +509,10 @@ const CierreCaja = () => {
                   </div>
                 )}
                 <p className="text-[11px] text-emerald-800/90">
-                  Ese monto se sugerirá automáticamente en el próximo inicio de caja.
+                  Ese monto se sugerirá automáticamente en el próximo inicio de caja. Si lo cambiás, queda
+                  detallado arriba y en el PDF del cierre.
                 </p>
               </div>
-              )}
-              {!esAdmin && hayInicioCaja && (
-                <p className="mt-3 text-[11px] text-emerald-800/90 print:hidden">
-                  Se deja el mismo monto de inicio ({fmtMoney(montoApertura)}) para el próximo turno.
-                </p>
-              )}
             </div>
           )}
 

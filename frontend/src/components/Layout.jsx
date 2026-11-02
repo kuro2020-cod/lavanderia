@@ -481,6 +481,18 @@ const Layout = ({ children }) => {
                           </span>
                         </div>
                       )}
+                      {aperturaCierre.modificaciones?.map((mod) => (
+                        <p key={mod.tipo} className="text-xs leading-relaxed text-amber-900 dark:text-amber-100">
+                          <strong>
+                            {mod.tipo === 'apertura' ? 'Apertura modificada.' : 'Cierre modificado.'}
+                          </strong>{' '}
+                          {mod.tipo === 'apertura' ? 'El turno anterior dejó' : 'La apertura fue'}{' '}
+                          {fmtMoney(mod.anterior)} y {mod.tipo === 'apertura' ? 'se abrió con' : 'se dejan'}{' '}
+                          {fmtMoney(mod.nuevo)} ({mod.diferencia > 0 ? '+' : ''}
+                          {fmtMoney(mod.diferencia)})
+                          {mod.quien ? `. Lo cambió ${mod.quien}.` : '.'}
+                        </p>
+                      ))}
                     </div>
                   )}
                   {totalesCierre.map(({ key, label, total, ventas, proveedores }) => (

@@ -6,6 +6,7 @@ import {
   lineasRubrosCierre,
   extraRubroCierre,
   formatAperturaCajaHora,
+  detalleModificacionesCaja,
   SUBTITULO_RUBROS_CIERRE
 } from '../../utils/cierreCajaDisplay'
 
@@ -95,10 +96,25 @@ export const bloqueAperturaCajaHtml = (detalle) => {
   const horaHtml = horaApertura
     ? `<p class="apertura-hora"><strong>Apertura de caja:</strong> ${horaApertura}</p>`
     : ''
+  const modsHtml = detalleModificacionesCaja(ap)
+    .map((mod) => {
+      const titulo = mod.tipo === 'apertura' ? 'Apertura modificada' : 'Cierre modificado'
+      const desde =
+        mod.tipo === 'apertura' ? 'El turno anterior dejó' : 'La apertura fue'
+      const hacia = mod.tipo === 'apertura' ? 'se abrió con' : 'se dejan'
+      const extra =
+        mod.tipo === 'cierre'
+          ? ` Ajuste al efectivo: ${mod.diferencia > 0 ? '+' : ''}${fmtMoney(mod.diferencia)}.`
+          : ` Diferencia: ${mod.diferencia > 0 ? '+' : ''}${fmtMoney(mod.diferencia)}.`
+      const quien = mod.quien ? ` Lo cambió ${mod.quien}.` : ''
+      return `<p class="apertura-mod"><strong>${titulo}.</strong> ${desde} ${fmtMoney(mod.anterior)} y ${hacia} ${fmtMoney(mod.nuevo)}.${extra}${quien}</p>`
+    })
+    .join('')
 
   return `
     <div class="apertura-wrap">
       <p class="apertura-title">Inicio y cierre de caja</p>
+      ${modsHtml}
       ${horaHtml}
       <div class="apertura-grid">
         <div class="apertura-card">
@@ -153,10 +169,26 @@ export const filasTablaMetodosHtml = (metodosObj) => {
 
     const ap = metodosObj.apertura_caja
     const horaApertura = ap ? formatAperturaCajaHora(ap) : null
+    const filasMods = ap
+      ? detalleModificacionesCaja(ap)
+          .map((mod) => {
+            const titulo = mod.tipo === 'apertura' ? 'Apertura modificada' : 'Cierre modificado'
+            const detalle =
+              mod.tipo === 'apertura'
+                ? `Turno anterior ${fmtMoney(mod.anterior)} → apertura ${fmtMoney(mod.nuevo)} (${mod.diferencia > 0 ? '+' : ''}${fmtMoney(mod.diferencia)})${mod.quien ? `. ${mod.quien}` : ''}`
+                : `Apertura ${fmtMoney(mod.anterior)} → se dejan ${fmtMoney(mod.nuevo)} (ajuste ${mod.diferencia > 0 ? '+' : ''}${fmtMoney(mod.diferencia)})${mod.quien ? `. ${mod.quien}` : ''}`
+            return `<tr>
+        <td><strong>${titulo}</strong></td>
+        <td class="num" colspan="2">${detalle}</td>
+      </tr>`
+          })
+          .join('')
+      : ''
     const bloqueApertura =
       ap && (ap.monto_apertura != null || ap.fondo_siguiente != null)
         ? `
       <tr><td colspan="3" style="background:#ecfdf5;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#047857;padding:10px 14px;">Inicio / fondo de caja</td></tr>
+      ${filasMods}
       ${
         horaApertura
           ? `<tr>

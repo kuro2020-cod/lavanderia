@@ -173,6 +173,47 @@ export function formatAperturaCajaHora(aperturaCaja) {
   })
 }
 
+/** Cambios de apertura (respecto del fondo anterior) y de cierre (respecto de la apertura). */
+export function detalleModificacionesCaja(ap) {
+  if (!ap || typeof ap !== 'object') return []
+  const lineas = []
+  const sugerido = Number(ap.monto_sugerido)
+  const apertura = Number(ap.monto_apertura)
+  const fondo = Number(ap.fondo_siguiente)
+  const aperturaModificada =
+    ap.apertura_modificada === true ||
+    (Number.isFinite(sugerido) &&
+      Number.isFinite(apertura) &&
+      Math.abs(sugerido - apertura) > 0.009)
+  if (aperturaModificada && Number.isFinite(sugerido) && Number.isFinite(apertura)) {
+    lineas.push({
+      tipo: 'apertura',
+      anterior: sugerido,
+      nuevo: apertura,
+      diferencia: Math.round((apertura - sugerido) * 100) / 100,
+      quien: ap.registrado_por || null
+    })
+  }
+  const diffCierre =
+    ap.diferencia_fondo != null && Number.isFinite(Number(ap.diferencia_fondo))
+      ? Number(ap.diferencia_fondo)
+      : Number.isFinite(apertura) && Number.isFinite(fondo)
+        ? Math.round((apertura - fondo) * 100) / 100
+        : 0
+  const cierreModificado =
+    ap.cierre_modificado === true || (Number.isFinite(diffCierre) && Math.abs(diffCierre) > 0.009)
+  if (cierreModificado && Number.isFinite(fondo) && Number.isFinite(apertura)) {
+    lineas.push({
+      tipo: 'cierre',
+      anterior: apertura,
+      nuevo: fondo,
+      diferencia: diffCierre,
+      quien: ap.cerrado_por || null
+    })
+  }
+  return lineas
+}
+
 /** Inicio de caja y fondo dejado al cerrar (si están guardados en el detalle). */
 export function datosAperturaCierre(cierre) {
   const detalle = parseDetalleMetodosCierre(cierre)
@@ -193,6 +234,7 @@ export function datosAperturaCierre(cierre) {
     diferencia,
     registradoPor: ap.registrado_por || null,
     aperturaAt: ap.apertura_at ?? ap.created_at ?? null,
-    aperturaHora: formatAperturaCajaHora(ap)
+    aperturaHora: formatAperturaCajaHora(ap),
+    modificaciones: detalleModificacionesCaja(ap)
   }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { X, Banknote, Smartphone, CreditCard, BookUser, CheckCircle, PackageMinus, Bike } from 'lucide-react'
 import PedidosYaPagoModal from './PedidosYaPagoModal'
 import DetallePagoModal, { metodosNecesitanDetalle } from './DetallePagoModal'
@@ -52,6 +52,11 @@ export default function CobrarVentaModal({
   const [showPedidosYaModal, setShowPedidosYaModal] = useState(false)
   const [showDetallePago, setShowDetallePago] = useState(false)
   const [pedidosYaConfig, setPedidosYaConfig] = useState(pedidosYaVacio)
+  const [ctrlPresionado, setCtrlPresionado] = useState(false)
+  const ctrlPresionadoRef = useRef(false)
+  const marcoConControlRef = useRef(false)
+  const metodosRef = useRef([])
+  const abrirSegunMetodosRef = useRef(() => {})
 
   const pagoCombinado = metodosSeleccionados.length >= 2
   const metodoUnico = metodosSeleccionados.length === 1 ? metodosSeleccionados[0] : ''
@@ -59,6 +64,8 @@ export default function CobrarVentaModal({
   useEffect(() => {
     if (!open) return
     setMetodosSeleccionados([])
+    metodosRef.current = []
+    marcoConControlRef.current = false
     setMontosPago(montosVacios())
     setMontoRecibidoEfectivo('')
     setNombreDueno('')
@@ -152,17 +159,35 @@ export default function CobrarVentaModal({
 
   const esMetodoExclusivo = (key) => key === 'retiro' || key === 'pedidos_ya'
 
-  const toggleMetodo = (key) => {
+  abrirSegunMetodosRef.current = (metodos) => {
+    if (!metodos?.length) return
+    if (metodos.includes('pedidos_ya')) {
+      setShowPedidosYaModal(true)
+      setShowDetallePago(false)
+      return
+    }
+    setShowPedidosYaModal(false)
+    if (metodosNecesitanDetalle(metodos, esDevolucionEnvase)) {
+      setShowDetallePago(true)
+    } else {
+      setShowDetallePago(false)
+    }
+  }
+
+  const toggleMetodo = (key, conCtrl = false) => {
+    const diferirModal = conCtrl || ctrlPresionadoRef.current
+    if (conCtrl) {
+      ctrlPresionadoRef.current = true
+      setCtrlPresionado(true)
+    }
+    if (diferirModal) marcoConControlRef.current = true
     setError('')
     setMetodosSeleccionados((prev) => {
       let next
       if (prev.includes(key)) {
         setMontosPago((m) => ({ ...m, [key]: '' }))
         if (key === 'efectivo') setMontoRecibidoEfectivo('')
-        if (key === 'pedidos_ya') {
-          setShowPedidosYaModal(false)
-          setPedidosYaConfig(pedidosYaVacio())
-        }
+        if (key === 'pedidos_ya') setPedidosYaConfig(pedidosYaVacio())
         next = prev.filter((k) => k !== key)
       } else if (
         esMetodoExclusivo(key) ||
@@ -172,28 +197,59 @@ export default function CobrarVentaModal({
       ) {
         setMontosPago(montosVacios())
         setMontoRecibidoEfectivo('')
-        if (key === 'pedidos_ya') {
-          setShowPedidosYaModal(true)
-        } else {
-          setShowPedidosYaModal(false)
-          setPedidosYaConfig(pedidosYaVacio())
-        }
+        if (key !== 'pedidos_ya') setPedidosYaConfig(pedidosYaVacio())
         next = [key]
       } else {
-        if (key === 'pedidos_ya') {
-          setShowPedidosYaModal(true)
-        }
         next = [...prev, key]
       }
 
-      if (key !== 'pedidos_ya' && metodosNecesitanDetalle(next, esDevolucionEnvase)) {
-        setShowDetallePago(true)
-      } else if (!metodosNecesitanDetalle(next, esDevolucionEnvase)) {
+      metodosRef.current = next
+      if (diferirModal) {
         setShowDetallePago(false)
+        setShowPedidosYaModal(false)
+      } else {
+        abrirSegunMetodosRef.current(next)
       }
       return next
     })
   }
+
+  useEffect(() => {
+    if (!open) {
+      ctrlPresionadoRef.current = false
+      setCtrlPresionado(false)
+      return
+    }
+
+    const soltarControl = () => {
+      if (!ctrlPresionadoRef.current) return
+      ctrlPresionadoRef.current = false
+      setCtrlPresionado(false)
+      if (!marcoConControlRef.current) return
+      marcoConControlRef.current = false
+      abrirSegunMetodosRef.current(metodosRef.current)
+    }
+
+    const onKeyDown = (e) => {
+      if (e.key !== 'Control' || e.repeat) return
+      ctrlPresionadoRef.current = true
+      setCtrlPresionado(true)
+    }
+
+    const onKeyUp = (e) => {
+      if (e.key !== 'Control') return
+      soltarControl()
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    window.addEventListener('blur', soltarControl)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+      window.removeEventListener('blur', soltarControl)
+    }
+  }, [open])
 
   const confirmarPedidosYa = (config = pedidosYaConfig) => {
     const medios = config.medios || []
@@ -374,10 +430,15 @@ export default function CobrarVentaModal({
               {!esDevolucionEnvase && (
                 <span className="font-normal text-gray-500 dark:text-slate-400">
                   {' '}
-                  · podés combinar efectivo, transferencia, tarjeta o fiado. Pedidos Ya y retiro van solos.
+                  · mantené Control, marcá efectivo, transferencia, tarjeta o fiado y soltalo para cobrar. Pedidos Ya y retiro van solos.
                 </span>
               )}
             </p>
+            {ctrlPresionado && !esDevolucionEnvase && (
+              <p className="mb-3 text-sm font-medium text-emerald-800 dark:text-emerald-200 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-700 rounded-lg px-3 py-2">
+                Marcá los métodos. Al soltar Control se abre el cobro.
+              </p>
+            )}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
               {metodosDisponibles.map(({ key, label, Icon }) => {
                 const activo = metodosSeleccionados.includes(key)
@@ -385,7 +446,7 @@ export default function CobrarVentaModal({
                   <button
                     key={key}
                     type="button"
-                    onClick={() => toggleMetodo(key)}
+                    onClick={(e) => toggleMetodo(key, e.ctrlKey)}
                     className={`flex flex-col items-center justify-center gap-3 rounded-2xl border-2 px-4 py-6 sm:py-8 transition-colors ${
                       activo
                         ? key === 'retiro'

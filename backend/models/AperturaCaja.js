@@ -1,7 +1,6 @@
 import db from '../database/db.js';
 import { fechaLocalISO, normalizarFechaISO } from '../utils/fechaCaja.js';
 import { esUsuarioVendedor } from '../utils/usuarioAliases.js';
-import { esRolAdmin } from '../utils/roles.js';
 
 const round2 = (n) => Math.round(Number(n) * 100) / 100;
 
@@ -17,6 +16,10 @@ function mapRow(row) {
     ...row,
     fecha_caja: normalizarFechaISO(row.fecha_caja) || row.fecha_caja,
     monto_apertura: round2(row.monto_apertura),
+    monto_sugerido:
+      row.monto_sugerido == null || row.monto_sugerido === ''
+        ? null
+        : round2(row.monto_sugerido),
     fondo_siguiente:
       row.fondo_siguiente == null || row.fondo_siguiente === ''
         ? null
@@ -94,15 +97,9 @@ export class AperturaCaja {
       throw new Error('Usuario no identificado');
     }
 
-    const esAdmin = esRolAdmin(authUser.rol);
     const uid = usuarioIdParaCaja(authUser);
-    let m = round2(monto);
-
-    // USER: siempre abre con el fondo dejado por el turno anterior (no puede alterar el monto).
-    if (!esAdmin) {
-      const sugerido = await this.getFondoSugerido();
-      m = sugerido != null && Number.isFinite(sugerido) && sugerido >= 0 ? sugerido : 0;
-    }
+    const sugerido = await this.getFondoSugerido();
+    const m = round2(monto);
 
     if (!Number.isFinite(m) || m < 0) {
       throw new Error('Indicá un monto válido para el inicio de caja (≥ 0)');
@@ -117,10 +114,16 @@ export class AperturaCaja {
     const ins = await db.run(
       `
       INSERT INTO aperturas_caja
-        (monto_apertura, usuario_id, registrado_por, abierta, fecha_caja)
-      VALUES (?, ?, ?, TRUE, ?::date)
+        (monto_apertura, monto_sugerido, usuario_id, registrado_por, abierta, fecha_caja)
+      VALUES (?, ?, ?, ?, TRUE, ?::date)
     `,
-      [m, authUser.id, etiquetaUsuario(authUser), fecha]
+      [
+        m,
+        sugerido != null && Number.isFinite(sugerido) ? sugerido : null,
+        authUser.id,
+        etiquetaUsuario(authUser),
+        fecha
+      ]
     );
 
     const apertura = await db.get(`SELECT * FROM aperturas_caja WHERE id = ?`, [ins.lastID]);
