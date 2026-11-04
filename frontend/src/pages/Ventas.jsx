@@ -2037,6 +2037,23 @@ const Ventas = () => {
       return
     }
 
+    if (payMetodo === 'uso_negocio' && payCombinado) {
+      showToast({
+        type: 'msg',
+        variant: 'warn',
+        message: 'Uso en el negocio no se puede combinar con otros métodos de pago.'
+      })
+      return
+    }
+    if (payMetodo === 'uso_negocio' && cart.some((l) => l.es_cobro_fiado)) {
+      showToast({
+        type: 'msg',
+        variant: 'warn',
+        message: 'Sacá el cobro de fiado del carrito para registrar un uso en el negocio.'
+      })
+      return
+    }
+
     if (payMetodo === 'retiro') {
       if (payCombinado) {
         showToast({
@@ -2133,11 +2150,14 @@ const Ventas = () => {
         })
         return
       }
-      if (payMetodo === 'fiado') {
+      if (payMetodo === 'fiado' || payMetodo === 'uso_negocio') {
         showToast({
           type: 'msg',
           variant: 'warn',
-          message: 'La devolución de envase no se puede registrar como fiado.'
+          message:
+            payMetodo === 'fiado'
+              ? 'La devolución de envase no se puede registrar como fiado.'
+              : 'La devolución de envase no se puede registrar como uso en el negocio.'
         })
         return
       }
@@ -2158,6 +2178,9 @@ const Ventas = () => {
     }
     if (paymentOverride?.canalPago === 'pedidos_ya') {
       payload.motivo = 'Venta Pedidos Ya'
+    }
+    if (payMetodo === 'uso_negocio') {
+      payload.motivo = 'Uso en el negocio'
     }
 
     let montoTransferencia = 0

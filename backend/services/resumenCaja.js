@@ -146,6 +146,7 @@ async function resumenVentasPorMetodo(periodo, filtro = null) {
     SELECT COUNT(*)::int AS n
     FROM movimientos m
     WHERE m.tipo = 'salida'
+      AND ${SQL_NO_USO_NEGOCIO}
       AND ${condFecha.sql}${condUsuario.sql}
   `,
     params
@@ -161,6 +162,7 @@ async function resumenVentasPorMetodo(periodo, filtro = null) {
     FROM movimientos m
     CROSS JOIN LATERAL jsonb_each_text(m.pagos_desglose) AS e(key, value)
     WHERE m.tipo = 'salida'
+      AND ${SQL_NO_USO_NEGOCIO}
       AND ${condFecha.sql}${condUsuario.sql}
       AND m.pagos_desglose IS NOT NULL
       AND jsonb_typeof(m.pagos_desglose) = 'object'
@@ -184,6 +186,7 @@ async function resumenVentasPorMetodo(periodo, filtro = null) {
       COALESCE(SUM(m.cantidad * COALESCE(m.precio_unitario, 0)), 0)::numeric AS total
     FROM movimientos m
     WHERE m.tipo = 'salida'
+      AND ${SQL_NO_USO_NEGOCIO}
       AND ${condFecha.sql}${condUsuario.sql}
       AND (
         m.pagos_desglose IS NULL
@@ -322,6 +325,7 @@ async function resumenIngresosEfectivo(periodo, filtro = null) {
 }
 
 const SQL_PEDIDOS_YA = `LOWER(COALESCE(m.motivo, '')) LIKE '%pedidos ya%'`;
+const SQL_NO_USO_NEGOCIO = `COALESCE(m.metodo_pago, '') <> 'uso_negocio'`;
 
 function normalizarLabelRubro(s) {
   return String(s || '')
@@ -357,6 +361,7 @@ async function resumenContadoresDashboard(periodo, filtro = null) {
       FROM movimientos m
       JOIN productos p ON p.id = m.producto_id
       WHERE m.tipo = 'salida'
+        AND ${SQL_NO_USO_NEGOCIO}
         AND ${condFecha.sql}${condUsuario.sql}
         AND p.categoria_id = ?
         AND UPPER(TRIM(COALESCE(p.codigo, ''))) NOT LIKE 'REINICIO-%'
@@ -520,6 +525,7 @@ async function resumenRubrosEspeciales(periodo, filtro = null) {
           JOIN productos p ON p.id = m.producto_id
           LEFT JOIN categorias c ON c.id = p.categoria_id
           WHERE m.tipo = 'salida'
+            AND ${SQL_NO_USO_NEGOCIO}
             AND ${condFecha.sql}${condUsuario.sql}
             AND ${SQL_CAFE_MAQUINA}
         ),
@@ -568,6 +574,7 @@ async function resumenRubrosEspeciales(periodo, filtro = null) {
         JOIN productos p ON p.id = m.producto_id
         LEFT JOIN categorias c ON c.id = p.categoria_id
         WHERE m.tipo = 'salida'
+          AND ${SQL_NO_USO_NEGOCIO}
           AND ${condFecha.sql}${condUsuario.sql}
           AND ${rubro.sql}
       `,

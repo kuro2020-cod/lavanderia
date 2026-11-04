@@ -25,7 +25,7 @@ function cerrarCentavosGruposPromo(detalle) {
   }
 }
 
-const METODOS_VALIDOS = ['efectivo', 'transferencia', 'tarjeta', 'fiado'];
+const METODOS_VALIDOS = ['efectivo', 'transferencia', 'tarjeta', 'fiado', 'uso_negocio'];
 
 /** Café máquina: precio fijo de lista (sin descuentos manuales del carrito). */
 function esProductoCafeMaquina(producto) {

@@ -462,6 +462,7 @@ html.dark :is(main, .modal-panel, [role='dialog'], [role='presentation']) :is(
     [class~='text-violet-700'],
     [class~='text-violet-800'],
     [class~='text-violet-900'],
+    [class~='text-violet-950'],
     [class~='text-purple-800'],
     [class~='text-purple-900'],
     [class~='text-indigo-700'],

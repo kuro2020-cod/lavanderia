@@ -28,6 +28,8 @@ function textoMetodoPago(m) {
     } else {
       texto = 'MIXTO'
     }
+  } else if (m.metodo_pago === 'uso_negocio') {
+    texto = 'USO EN EL NEGOCIO'
   } else if (m.metodo_pago) {
     texto = m.metodo_pago.toUpperCase()
   }

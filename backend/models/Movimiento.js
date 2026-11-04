@@ -65,6 +65,39 @@ export class Movimiento {
     return movimientos;
   }
 
+  /** Salidas cobradas como uso interno: bajan stock y no entran a la caja. */
+  static async getUsoNegocio(options = {}) {
+    const limitRaw = options.limit != null ? Number(options.limit) : 5000;
+    const limit = Math.min(Math.max(Number.isFinite(limitRaw) ? limitRaw : 5000, 1), 20000);
+    const params = [];
+    let fechaSql = '';
+    const desde = String(options.desde || '').trim();
+    const hasta = String(options.hasta || '').trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(desde)) {
+      fechaSql += ` AND m.fecha >= ?::date`;
+      params.push(desde);
+    }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(hasta)) {
+      fechaSql += ` AND m.fecha < (?::date + interval '1 day')`;
+      params.push(hasta);
+    }
+    params.push(limit);
+    return db.all(
+      `
+      SELECT m.id, m.fecha, m.cantidad, m.precio_unitario, m.motivo, m.usuario, m.producto_id,
+             p.nombre AS producto_nombre, p.codigo AS producto_codigo, p.unidad_medida
+      FROM movimientos m
+      JOIN productos p ON m.producto_id = p.id
+      WHERE m.tipo = 'salida'
+        AND m.metodo_pago = 'uso_negocio'
+        ${fechaSql}
+      ORDER BY m.fecha DESC, m.id DESC
+      LIMIT ?
+    `,
+      params
+    );
+  }
+
   static async create(movimientoData) {
     const { producto_id, tipo, cantidad: cantRaw, motivo, usuario, precio_unitario, metodo_pago } = movimientoData;
     const cantidad = round4(cantRaw);
@@ -120,7 +153,7 @@ export class Movimiento {
       precioGuardado = raw;
     }
 
-    const metodosValidos = ['efectivo', 'transferencia', 'tarjeta', 'fiado'];
+    const metodosValidos = ['efectivo', 'transferencia', 'tarjeta', 'fiado', 'uso_negocio'];
     const metodoPagoNormalizado = metodosValidos.includes(String(metodo_pago || '').toLowerCase())
       ? String(metodo_pago).toLowerCase()
       : null;
@@ -242,6 +275,7 @@ export class Movimiento {
       FROM movimientos m
       JOIN productos p ON m.producto_id = p.id
       WHERE m.tipo = 'salida'
+        AND COALESCE(m.metodo_pago, '') <> 'uso_negocio'
         AND (${cond})
     `,
       params
@@ -258,6 +292,7 @@ export class Movimiento {
       FROM movimientos m
       JOIN productos p ON m.producto_id = p.id
       WHERE m.tipo = 'salida'
+        AND COALESCE(m.metodo_pago, '') <> 'uso_negocio'
         AND (${cond})
       GROUP BY p.id, p.nombre, p.codigo
       ORDER BY unidades_vendidas DESC, p.nombre ASC
@@ -282,6 +317,7 @@ export class Movimiento {
           LOWER(TRIM(m.usuario)) = LOWER(TRIM(CONCAT(u.apellido, ', ', u.nombre)))
           OR LOWER(TRIM(m.usuario)) = LOWER(TRIM(u.usuario))
         )
+        AND COALESCE(m.metodo_pago, '') <> 'uso_negocio'
         AND (${cond})
       LEFT JOIN productos p ON m.producto_id = p.id
       GROUP BY u.id, u.nombre, u.apellido, u.usuario, u.rol
@@ -298,6 +334,7 @@ export class Movimiento {
       FROM movimientos m
       JOIN productos p ON m.producto_id = p.id
       WHERE m.tipo = 'salida'
+        AND COALESCE(m.metodo_pago, '') <> 'uso_negocio'
         AND (${cond})
         AND NOT EXISTS (
           SELECT 1 FROM usuario u

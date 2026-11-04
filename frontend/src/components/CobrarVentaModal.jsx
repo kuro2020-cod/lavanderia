@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { X, Banknote, Smartphone, CreditCard, BookUser, CheckCircle, PackageMinus, Bike } from 'lucide-react'
+import { X, Banknote, Smartphone, CreditCard, BookUser, CheckCircle, PackageMinus, Bike, Store } from 'lucide-react'
 import PedidosYaPagoModal from './PedidosYaPagoModal'
 import DetallePagoModal, { metodosNecesitanDetalle } from './DetallePagoModal'
 import { fmtMoney } from '../utils/promociones'
@@ -24,8 +24,9 @@ const METODOS = [
   { key: 'transferencia', label: 'Transferencia', Icon: Smartphone },
   { key: 'tarjeta', label: 'Tarjeta', Icon: CreditCard },
   { key: 'fiado', label: 'Fiado', Icon: BookUser },
-  { key: 'pedidos_ya', label: 'Pedidos Ya', Icon: Bike },
-  { key: 'retiro', label: 'Retiro', Icon: PackageMinus }
+  { key: 'uso_negocio', label: 'Uso en el negocio', Icon: Store },
+  { key: 'retiro', label: 'Retiro', Icon: PackageMinus },
+  { key: 'pedidos_ya', label: 'Pedidos Ya', Icon: Bike }
 ]
 
 const pedidosYaVacio = () => ({
@@ -90,7 +91,7 @@ export default function CobrarVentaModal({
   ])
 
   const metodosDisponibles = useMemo(() => {
-    if (esDevolucionEnvase) return METODOS.filter((m) => m.key !== 'fiado')
+    if (esDevolucionEnvase) return METODOS.filter((m) => m.key !== 'fiado' && m.key !== 'uso_negocio')
     return METODOS
   }, [esDevolucionEnvase])
 
@@ -157,7 +158,7 @@ export default function CobrarVentaModal({
   const requiereNombreFiado =
     metodoUnico === 'fiado' || (pagoCombinado && montoFiadoCombinado > 0)
 
-  const esMetodoExclusivo = (key) => key === 'retiro' || key === 'pedidos_ya'
+  const esMetodoExclusivo = (key) => key === 'retiro' || key === 'pedidos_ya' || key === 'uso_negocio'
 
   abrirSegunMetodosRef.current = (metodos) => {
     if (!metodos?.length) return
@@ -391,7 +392,11 @@ export default function CobrarVentaModal({
       >
         <div className="shrink-0 px-4 sm:px-8 py-4 sm:py-5 border-b border-gray-100 dark:border-slate-700 flex items-center justify-between gap-3">
           <h3 id="cobrar-venta-titulo" className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-slate-50">
-            {metodoUnico === 'retiro' ? 'Retiro de mercadería' : 'Cobrar venta'}
+            {metodoUnico === 'retiro'
+              ? 'Retiro de mercadería'
+              : metodoUnico === 'uso_negocio'
+                ? 'Uso en el negocio'
+                : 'Cobrar venta'}
           </h3>
           <button
             type="button"
@@ -430,7 +435,7 @@ export default function CobrarVentaModal({
               {!esDevolucionEnvase && (
                 <span className="font-normal text-gray-500 dark:text-slate-400">
                   {' '}
-                  · mantené Control, marcá efectivo, transferencia, tarjeta o fiado y soltalo para cobrar. Pedidos Ya y retiro van solos.
+                  · mantené Control, marcá efectivo, transferencia, tarjeta o fiado y soltalo para cobrar. Pedidos Ya, retiro y uso en el negocio van solos.
                 </span>
               )}
             </p>
@@ -453,7 +458,9 @@ export default function CobrarVentaModal({
                           ? 'border-amber-500 bg-amber-50 text-amber-950 dark:bg-amber-950/50 dark:text-amber-100 dark:border-amber-400'
                           : key === 'pedidos_ya'
                             ? 'border-rose-500 bg-rose-50 text-rose-950 dark:bg-rose-950/50 dark:text-rose-100 dark:border-rose-400'
-                            : 'border-emerald-500 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-100 dark:border-emerald-400'
+                            : key === 'uso_negocio'
+                              ? 'border-violet-500 bg-violet-50 text-violet-950 dark:bg-violet-950/50 dark:text-violet-100 dark:border-violet-400'
+                              : 'border-emerald-500 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-100 dark:border-emerald-400'
                         : 'border-gray-200 bg-white text-gray-700 hover:border-emerald-300 hover:bg-emerald-50/50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-emerald-600'
                     }`}
                   >
@@ -465,7 +472,9 @@ export default function CobrarVentaModal({
                             ? 'text-amber-600 dark:text-amber-300'
                             : key === 'pedidos_ya'
                               ? 'text-rose-600 dark:text-rose-300'
-                              : 'text-emerald-600 dark:text-emerald-300'
+                              : key === 'uso_negocio'
+                                ? 'text-violet-600 dark:text-violet-300'
+                                : 'text-emerald-600 dark:text-emerald-300'
                           : ''
                       }
                     />
@@ -495,6 +504,12 @@ export default function CobrarVentaModal({
                 Cargar datos
               </button>
             </div>
+          )}
+
+          {metodoUnico === 'uso_negocio' && (
+            <p className="text-sm text-violet-950 dark:text-violet-100 bg-violet-50 dark:bg-violet-950/40 border border-violet-200 dark:border-violet-800 rounded-lg px-3 py-2">
+              Se descuenta el stock de lo marcado. No suma dinero al efectivo ni al cierre de caja.
+            </p>
           )}
 
           {metodoUnico === 'pedidos_ya' && (
@@ -567,11 +582,19 @@ export default function CobrarVentaModal({
                 ? 'bg-amber-600 hover:bg-amber-700'
                 : metodoUnico === 'pedidos_ya'
                   ? 'bg-rose-600 hover:bg-rose-700'
-                  : 'bg-emerald-600 hover:bg-emerald-700'
+                  : metodoUnico === 'uso_negocio'
+                    ? 'bg-violet-600 hover:bg-violet-700'
+                    : 'bg-emerald-600 hover:bg-emerald-700'
             }`}
           >
             <CheckCircle size={20} />
-            {submitting ? 'Registrando…' : metodoUnico === 'retiro' ? 'Confirmar retiro' : 'Confirmar cobro'}
+            {submitting
+              ? 'Registrando…'
+              : metodoUnico === 'retiro'
+                ? 'Confirmar retiro'
+                : metodoUnico === 'uso_negocio'
+                  ? 'Confirmar uso'
+                  : 'Confirmar cobro'}
           </button>
         </div>
       </div>

@@ -27,6 +27,7 @@ import Faltantes from './pages/Faltantes'
 import Asistente from './pages/Asistente'
 import MercadoPago from './pages/MercadoPago'
 import Vencimientos from './pages/Vencimientos'
+import UsoNegocio from './pages/UsoNegocio'
 import LoadingScreen from './components/ui/LoadingScreen'
 import { esAccesoLimitado, rutaHome } from './utils/acceso'
 import { esRolAdmin } from './utils/roles'
@@ -122,6 +123,7 @@ function AppRoutes() {
         <Route path="/ingresos-efectivo" element={<IngresosEfectivo />} />
         <Route path="/fiados" element={<Fiados />} />
         <Route path="/faltantes" element={<Faltantes />} />
+        <Route path="/uso-negocio" element={<UsoNegocio />} />
         <Route path="/mercadopago" element={<MercadoPago />} />
         <Route path="/cierre-caja" element={<CierreCaja />} />
         <Route

@@ -41,6 +41,20 @@ router.get('/mis-ventas', async (req, res) => {
   }
 });
 
+// Mercadería consumida en el local (no entra a la caja)
+router.get('/uso-negocio', async (req, res) => {
+  try {
+    const movimientos = await Movimiento.getUsoNegocio({
+      desde: req.query.desde,
+      hasta: req.query.hasta,
+      limit: req.query.limit
+    });
+    res.json(movimientos);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Obtener todos los movimientos (solo ADMIN), incluye pagos a proveedores
 router.get('/', requireAdmin, async (req, res) => {
   try {

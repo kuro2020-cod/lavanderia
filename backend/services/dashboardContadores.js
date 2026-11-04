@@ -83,6 +83,7 @@ async function sumarVentasCategoria(categoriaId, { desdeExclusivo = null, hastaI
     FROM movimientos m
     JOIN productos p ON p.id = m.producto_id
     WHERE m.tipo = 'salida'
+      AND COALESCE(m.metodo_pago, '') <> 'uso_negocio'
       AND p.categoria_id = ?
       AND UPPER(TRIM(COALESCE(p.codigo, ''))) NOT LIKE 'REINICIO-%'
       ${condFecha}

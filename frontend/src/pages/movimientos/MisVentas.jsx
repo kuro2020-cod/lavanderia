@@ -54,6 +54,7 @@ const ETIQUETA_METODO = {
   transferencia: 'Transferencia',
   tarjeta: 'Tarjeta',
   fiado: 'Fiado',
+  uso_negocio: 'Uso en el negocio',
   sin_definir: 'Sin definir'
 }
 

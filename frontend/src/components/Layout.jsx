@@ -30,7 +30,8 @@ import {
   ChevronDown,
   Settings,
   CalendarClock,
-  Menu
+  Menu,
+  Store
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
@@ -128,6 +129,7 @@ const Layout = ({ children }) => {
         { path: '/estadisticas', icon: BarChart3, label: 'Estadísticas', adminOnly: true },
         { path: '/movimientos', icon: ArrowLeftRight, label: 'Movimientos', adminOnly: true },
         { path: '/mis-ventas', icon: ArrowLeftRight, label: 'Mis movimientos', userOnly: true },
+        { path: '/uso-negocio', icon: Store, label: 'Uso en el negocio' },
         { path: '/asistente', icon: Sparkles, label: 'Asistente', adminOnly: true }
       ]
     },

@@ -79,6 +79,7 @@ export const categoriasAPI = {
 export const movimientosAPI = {
   getAll: (params) => api.get('/movimientos', { params }),
   getMisVentas: (params) => api.get('/movimientos/mis-ventas', { params }),
+  getUsoNegocio: (params) => api.get('/movimientos/uso-negocio', { params }),
   getByProducto: (productoId) => api.get(`/movimientos/producto/${productoId}`),
   create: (data) => api.post('/movimientos', data),
   getStats: () => api.get('/movimientos/stats/diarias')
