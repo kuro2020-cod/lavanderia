@@ -7,6 +7,7 @@ import {
   extraRubroCierre,
   formatAperturaCajaHora,
   detalleModificacionesCaja,
+  retirosEfectivoCierre,
   SUBTITULO_RUBROS_CIERRE
 } from '../../utils/cierreCajaDisplay'
 
@@ -79,6 +80,44 @@ export const bloqueRubrosHtml = (detalle) => {
       <p class="rubros-title">Discriminación de rubros</p>
       <p class="rubros-sub">${SUBTITULO_RUBROS_CIERRE}</p>
       <div class="rubros-grid">${cards}</div>
+    </div>`
+}
+
+const fmtFechaRetiro = (v) => {
+  if (!v) return ''
+  const d = new Date(v)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleString('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+const escHtml = (s) => String(s ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+/** Detalle de retiros de efectivo para el PDF del cierre. */
+export const bloqueRetirosEfectivoHtml = (detalle) => {
+  const data = retirosEfectivoCierre({ detalle_metodos: detalle })
+  if (!data?.lista?.length) return ''
+  const filas = data.lista
+    .map((r) => {
+      const cuando = fmtFechaRetiro(r.fecha)
+      const quien = r.registrado_por ? escHtml(r.registrado_por) : ''
+      const motivo = r.motivo ? escHtml(r.motivo) : ''
+      const extra = [motivo, quien, cuando].filter(Boolean).join(' · ')
+      return `<li>
+        <span>${extra || 'Retiro de efectivo'}</span>
+        <strong>-${fmtMoney(r.monto).replace('$', '')}</strong>
+      </li>`
+    })
+    .join('')
+  return `
+    <div class="retiros-wrap">
+      <p class="retiros-title">Retiros de efectivo</p>
+      <ul class="retiros-list">${filas}</ul>
+      <p class="retiros-total">Total retiros: -${fmtMoney(data.total).replace('$', '')}</p>
     </div>`
 }
 

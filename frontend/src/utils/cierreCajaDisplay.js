@@ -19,6 +19,17 @@ export const METODOS_PROVEEDOR_ORDEN = ['efectivo', 'transferencia']
 export const fmtMoney = (n) =>
   `$${Number(n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
+export function retirosEfectivoCierre(cierre) {
+  const detalle = parseDetalleMetodosCierre(cierre)
+  const r = detalle?.retiros_efectivo
+  if (!r || typeof r !== 'object') return null
+  const lista = Array.isArray(r.lista) ? r.lista : []
+  const total = Number(r.total)
+  const totalOk = Number.isFinite(total) ? total : lista.reduce((s, x) => s + Number(x.monto || 0), 0)
+  if (!lista.length && totalOk <= 0) return null
+  return { total: Math.round(totalOk * 100) / 100, lista }
+}
+
 export function parseDetalleMetodosCierre(cierre) {
   const raw = cierre?.detalle_metodos
   if (!raw) return null

@@ -10,6 +10,7 @@ import {
   filasTablaMetodosHtml,
   bloqueRubrosHtml,
   bloqueAperturaCajaHtml,
+  bloqueRetirosEfectivoHtml,
   formatFechaCaja
 } from './cierreHelpers'
 import { esDetalleCierreV2, claseMontoNeto, extraRubroCierre, lineasRubrosCierre, formatAperturaCajaHora, detalleModificacionesCaja } from '../../utils/cierreCajaDisplay'
@@ -131,6 +132,7 @@ const HistorialCierresCaja = () => {
     const filasC = filasTablaMetodosHtml(det)
     const rubrosHtml = bloqueRubrosHtml(det)
     const aperturaHtml = bloqueAperturaCajaHtml(det)
+    const retirosHtml = bloqueRetirosEfectivoHtml(det)
     const obs = cierre.observaciones
       ? `<div class="obs"><strong>Observaciones</strong><p>${esc(cierre.observaciones)}</p></div>`
       : ''
@@ -297,6 +299,28 @@ const HistorialCierresCaja = () => {
           letter-spacing:.06em;
           color:#047857;
         }
+        .retiros-wrap{margin:16px 0 4px;}
+        .retiros-title{
+          margin:0 0 8px;
+          font-size:11px;
+          font-weight:700;
+          text-transform:uppercase;
+          letter-spacing:.06em;
+          color:#c2410c;
+        }
+        .retiros-list{list-style:none;margin:0;padding:0;border:1px solid #fed7aa;border-radius:12px;overflow:hidden;}
+        .retiros-list li{
+          display:flex;
+          justify-content:space-between;
+          gap:12px;
+          padding:8px 12px;
+          font-size:13px;
+          border-bottom:1px solid #ffedd5;
+          background:#fff7ed;
+        }
+        .retiros-list li:last-child{border-bottom:none;}
+        .retiros-list strong{font-variant-numeric:tabular-nums;color:#9a3412;white-space:nowrap;}
+        .retiros-total{margin:8px 0 0;text-align:right;font-size:13px;font-weight:800;color:#9a3412;}
         .apertura-mod{
           margin:0 0 8px;
           padding:8px 10px;
@@ -395,6 +419,7 @@ const HistorialCierresCaja = () => {
             <p class="row-meta"><strong>Cerrado por:</strong> ${esc(cierre.cerrado_por) || '—'}</p>
             ${obs}
             ${aperturaHtml}
+            ${retirosHtml}
             <div class="tbl-wrap">
               <table>
                 <thead>

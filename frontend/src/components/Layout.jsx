@@ -35,7 +35,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
-import { fmtMoney, lineasTotalesCierre, lineasRubrosCierre, extraRubroCierre, claseMontoNeto, datosAperturaCierre } from '../utils/cierreCajaDisplay'
+import { fmtMoney, lineasTotalesCierre, lineasRubrosCierre, extraRubroCierre, claseMontoNeto, datosAperturaCierre, retirosEfectivoCierre } from '../utils/cierreCajaDisplay'
 import ArqueoParcialModal from './ArqueoParcialModal'
 import AlertaVencimientos from './AlertaVencimientos'
 import { esAccesoLimitado } from '../utils/acceso'
@@ -168,6 +168,7 @@ const Layout = ({ children }) => {
   const totalesCierre = lineasTotalesCierre(cierreTurno)
   const rubrosCierre = lineasRubrosCierre(cierreTurno)
   const aperturaCierre = datosAperturaCierre(cierreTurno)
+  const retirosCierre = retirosEfectivoCierre(cierreTurno)
 
   const navItemClass = (isActive) => {
     if (cajaBloqueada) {
@@ -446,7 +447,7 @@ const Layout = ({ children }) => {
                   })}
                 </p>
               )}
-              {(totalesCierre.length > 0 || rubrosCierre.length > 0 || aperturaCierre) && (
+              {(totalesCierre.length > 0 || rubrosCierre.length > 0 || aperturaCierre || retirosCierre) && (
                 <div className="mt-5 text-left rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-800/80 p-4 space-y-1.5">
                   <p className="text-xs font-bold text-slate-600 dark:text-slate-200 uppercase tracking-wide text-center mb-2">
                     Totales de este turno
@@ -587,6 +588,40 @@ const Layout = ({ children }) => {
                           </div>
                         )
                       })()}
+                    </div>
+                  )}
+                  {retirosCierre && (
+                    <div className="pt-2 mt-2 border-t border-slate-200 dark:border-slate-600 space-y-1.5">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-orange-700 dark:text-orange-300 mb-1">
+                        Retiros de efectivo
+                      </p>
+                      {retirosCierre.lista.map((r) => {
+                        const cuando = r.fecha
+                          ? new Date(r.fecha).toLocaleString('es-AR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })
+                          : ''
+                        const detalle = [r.motivo, r.registrado_por, cuando].filter(Boolean).join(' · ')
+                        return (
+                          <div key={r.id || `${r.monto}-${cuando}`} className="flex justify-between gap-3 text-sm">
+                            <span className="text-slate-600 dark:text-slate-300 text-left min-w-0">
+                              {detalle || 'Retiro de efectivo'}
+                            </span>
+                            <span className="font-semibold tabular-nums text-orange-800 dark:text-orange-200 shrink-0">
+                              -{fmtMoney(r.monto).replace('$', '')}
+                            </span>
+                          </div>
+                        )
+                      })}
+                      <div className="flex justify-between gap-3 text-sm font-semibold">
+                        <span className="text-orange-800 dark:text-orange-200">Total retiros</span>
+                        <span className="tabular-nums text-orange-800 dark:text-orange-200">
+                          -{fmtMoney(retirosCierre.total).replace('$', '')}
+                        </span>
+                      </div>
                     </div>
                   )}
                   <div className="flex justify-between gap-3 text-sm pt-2 mt-2 border-t border-slate-200 dark:border-slate-600 font-bold">
