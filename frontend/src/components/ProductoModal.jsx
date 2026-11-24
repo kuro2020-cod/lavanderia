@@ -74,7 +74,9 @@ const ProductoModal = ({
   onIngresoAutomatico,
   /** Tras guardar con éxito (modal / escáner) */
   onSaved,
-  cargaProductos = false
+  cargaProductos = false,
+  /** Producto elegido desde la lista: la carga suma sobre ese id, aunque no tenga código. */
+  productoParaCargar = null
 }) => {
   const [formData, setFormData] = useState(() => emptyForm(codigoInicial))
   const [categorias, setCategorias] = useState([])
@@ -88,9 +90,42 @@ const ProductoModal = ({
   const [stockBase, setStockBase] = useState(0)
   const camposTocadosRef = useRef(new Set())
   const codigoConsultaRef = useRef('')
+  const cantidadRef = useRef(null)
+  const [codigoBloqueado, setCodigoBloqueado] = useState(
+    () => cargaProductos && !producto && Boolean(String(codigoInicial || '').trim())
+  )
 
   const reiniciarFormularioCarga = useCallback(async () => {
     if (!cargaProductos || producto) return
+    camposTocadosRef.current = new Set()
+    if (productoParaCargar?.id) {
+      setCodigoBloqueado(true)
+      try {
+        const { data } = await productosAPI.getById(productoParaCargar.id)
+        setFormData({
+          ...emptyForm(data.codigo || ''),
+          nombre: data.nombre || '',
+          descripcion: data.descripcion || '',
+          categoria_id: data.categoria_id != null && data.categoria_id !== '' ? String(data.categoria_id) : '',
+          precio_compra: precioParaForm(data.precio_compra),
+          precio_venta: precioParaForm(data.precio_venta),
+          unidad_medida: data.unidad_medida || 'unidad',
+          no_controla_stock: productoNoControlaStock(data),
+          no_verifica_vencimiento: Boolean(data.no_verifica_vencimiento) || productoNoVerificaVencimiento(data),
+          fecha_vencimiento: fechaISOParaInput(data.fecha_vencimiento)
+        })
+        setStockEnBaseDatos(Number(data.stock_actual) || 0)
+        setCodigoExisteEnBd(true)
+        setProductoExistenteId(data.id)
+      } catch {
+        setFormData(emptyForm(productoParaCargar.codigo || ''))
+        setStockEnBaseDatos(Number(productoParaCargar.stock_actual) || 0)
+        setCodigoExisteEnBd(true)
+        setProductoExistenteId(productoParaCargar.id)
+      }
+      return
+    }
+    setCodigoBloqueado(Boolean(String(codigoInicial || '').trim()))
     if (codigoInicial?.trim()) {
       setFormData(emptyForm(codigoInicial))
     } else {
@@ -104,8 +139,7 @@ const ProductoModal = ({
     setStockEnBaseDatos(0)
     setCodigoExisteEnBd(false)
     setProductoExistenteId(null)
-    camposTocadosRef.current = new Set()
-  }, [cargaProductos, producto, codigoInicial])
+  }, [cargaProductos, producto, codigoInicial, productoParaCargar])
 
   useEffect(() => {
     loadCategorias()
@@ -152,6 +186,12 @@ const ProductoModal = ({
   }, [producto, codigoInicial, cargaProductos, reiniciarFormularioCarga])
 
   useEffect(() => {
+    if (!cargaProductos || producto) return undefined
+    const t = setTimeout(() => cantidadRef.current?.focus(), 120)
+    return () => clearTimeout(t)
+  }, [cargaProductos, producto, codigoInicial, productoParaCargar])
+
+  useEffect(() => {
     if (!cargaProductos || producto) return
     const c = formData.codigo?.trim()
     if (c !== codigoConsultaRef.current) {
@@ -159,9 +199,11 @@ const ProductoModal = ({
       codigoConsultaRef.current = c || ''
     }
     if (!c) {
-      setStockEnBaseDatos(0)
-      setCodigoExisteEnBd(false)
-      setProductoExistenteId(null)
+      if (!productoParaCargar?.id) {
+        setStockEnBaseDatos(0)
+        setCodigoExisteEnBd(false)
+        setProductoExistenteId(null)
+      }
       return
     }
     let cancelled = false
@@ -171,9 +213,7 @@ const ProductoModal = ({
       try {
         const { data } = await productosAPI.getByCodigo(codigoConsultado)
         if (cancelled) return
-        const codigoRespuesta = String(data.codigo ?? '').trim()
-        if (codigoRespuesta !== codigoConsultado) return
-        setStockEnBaseDatos(Number(data.stock_actual) ?? 0)
+        setStockEnBaseDatos(Number(data.stock_actual) || 0)
         setCodigoExisteEnBd(true)
         setProductoExistenteId(data.id)
         setFormData((prev) => {
@@ -208,9 +248,11 @@ const ProductoModal = ({
       } catch (e) {
         if (cancelled) return
         if (e.response?.status === 404) {
-          setStockEnBaseDatos(0)
-          setCodigoExisteEnBd(false)
-          setProductoExistenteId(null)
+          if (!productoParaCargar?.id) {
+            setStockEnBaseDatos(0)
+            setCodigoExisteEnBd(false)
+            setProductoExistenteId(null)
+          }
         } else {
           console.error(e)
           setStockEnBaseDatos(0)
@@ -223,7 +265,7 @@ const ProductoModal = ({
       cancelled = true
       clearTimeout(t)
     }
-  }, [formData.codigo, cargaProductos, producto])
+  }, [formData.codigo, cargaProductos, producto, productoParaCargar])
 
   const loadCategorias = async () => {
     try {
@@ -240,8 +282,11 @@ const ProductoModal = ({
       alert('Escriba la unidad (ej. litro) o elija "Por pieza" / "Por peso — kg".')
       return
     }
+    const productoYaExiste = Boolean(
+      producto?.id || productoParaCargar?.id || productoExistenteId || codigoExisteEnBd
+    )
     const pideVencimiento = !formData.no_controla_stock && !formData.no_verifica_vencimiento
-    if (pideVencimiento && !fechaISOParaInput(formData.fecha_vencimiento)) {
+    if (pideVencimiento && !productoYaExiste && !fechaISOParaInput(formData.fecha_vencimiento)) {
       alert('La fecha de vencimiento es obligatoria, salvo que marques “No verifica vencimiento”.')
       return
     }
@@ -259,8 +304,29 @@ const ProductoModal = ({
 
       if (cargaProductos && !producto) {
         const codigoTrim = formData.codigo?.trim()
+        const qty = cantidadIngresoANumero(formData.cantidad_ingreso)
+        const tocados = camposTocadosRef.current
+        const precioCambio = (campo, valorForm, valorNumero) => {
+          if (tocados.has(campo)) return true
+          const texto = String(formData[campo] ?? '').trim()
+          if (texto === '') return false
+          return Number(valorForm) !== valorNumero
+        }
+        const extras = {}
+        if (tocados.has('precio_compra')) extras.precio_compra = precioCompra
+        if (tocados.has('precio_venta')) extras.precio_venta = precioVenta
+        if (tocados.has('descripcion')) extras.descripcion = formData.descripcion?.trim() || null
+        if (tocados.has('unidad_medida')) extras.unidad_medida = formData.unidad_medida
+        if (tocados.has('categoria_id')) extras.categoria_id = catId
+        if (tocados.has('no_verifica_vencimiento') && noVerifica) extras.no_verifica_vencimiento = true
+        else if (tocados.has('fecha_vencimiento') && fechaVenc) extras.fecha_vencimiento = fechaVenc
+
         let existente = null
-        if (codigoTrim) {
+        const anclado = productoParaCargar?.id || null
+        if (anclado && (codigoBloqueado || !codigoTrim)) {
+          const { data } = await productosAPI.getById(anclado)
+          existente = data
+        } else if (codigoTrim) {
           try {
             const { data } = await productosAPI.getByCodigo(codigoTrim)
             existente = data
@@ -268,44 +334,68 @@ const ProductoModal = ({
             if (e.response?.status !== 404) throw e
           }
         }
+
+        const terminarCarga = async (productoGuardado, cantidad, fusionado) => {
+          const info = { producto: productoGuardado, cantidad, fusionado: Boolean(fusionado) }
+          if (inline) await reiniciarFormularioCarga()
+          onIngresoAutomatico?.(info)
+          onSaved?.(info)
+          onClose()
+        }
+
         if (existente) {
-          const qty = cantidadIngresoANumero(formData.cantidad_ingreso)
-          await productosAPI.update(existente.id, {
-            codigo: existente.codigo,
-            nombre: (formData.nombre || existente.nombre || '').trim(),
+          if (qty > 0 && productoNoControlaStock(existente)) {
+            alert(
+              `"${existente.nombre}" no controla stock. Podés actualizar el precio, pero no sumar unidades.`
+            )
+            return
+          }
+          if (precioCambio('precio_compra', existente.precio_compra, precioCompra)) {
+            extras.precio_compra = precioCompra
+          }
+          if (precioCambio('precio_venta', existente.precio_venta, precioVenta)) {
+            extras.precio_venta = precioVenta
+          }
+          const { data } = await productosAPI.ingresar(existente.id, {
+            ...(qty > 0 ? { cantidad: qty } : {}),
+            ...extras,
+            ...(!String(existente.codigo || '').trim() && codigoTrim ? { codigo_si_vacio: codigoTrim } : {})
+          })
+          await terminarCarga(data, qty, false)
+          return
+        }
+
+        try {
+          const { data } = await productosAPI.create({
+            codigo: codigoTrim || null,
+            nombre: (formData.nombre || '').trim(),
             descripcion: formData.descripcion?.trim() || null,
             categoria_id: catId,
             precio_compra: precioCompra,
             precio_venta: precioVenta,
-            stock_minimo: Number(existente.stock_minimo) || 0,
             unidad_medida: formData.unidad_medida || 'unidad',
             no_controla_stock: noControla,
             no_verifica_vencimiento: noVerifica,
-            fecha_vencimiento: fechaVenc,
-            ...(qty > 0 && !noControla ? { cantidad_ingreso: qty } : {})
+            stock_actual: noControla ? 0 : qty,
+            stock_minimo: 0,
+            fecha_vencimiento: fechaVenc
           })
-          if (inline) await reiniciarFormularioCarga()
-          onIngresoAutomatico?.()
-          onSaved?.()
-          onClose()
-          return
+          await terminarCarga(data, noControla ? 0 : qty, false)
+        } catch (createErr) {
+          const dupId = createErr.response?.data?.producto_id
+          if (createErr.response?.status === 409 && dupId && !(qty > 0 && noControla)) {
+            const { data } = await productosAPI.ingresar(dupId, {
+              ...(qty > 0 ? { cantidad: qty } : {}),
+              ...extras,
+              ...(String(formData.precio_compra ?? '').trim() !== '' ? { precio_compra: precioCompra } : {}),
+              ...(String(formData.precio_venta ?? '').trim() !== '' ? { precio_venta: precioVenta } : {}),
+              ...(codigoTrim ? { codigo_si_vacio: codigoTrim } : {})
+            })
+            await terminarCarga(data, qty, true)
+            return
+          }
+          throw createErr
         }
-
-        const { cantidad_ingreso, ...rest } = formData
-        await productosAPI.create({
-          ...rest,
-          precio_compra: precioCompra,
-          precio_venta: precioVenta,
-          no_controla_stock: noControla,
-          no_verifica_vencimiento: noVerifica,
-          stock_actual: noControla ? 0 : cantidadIngresoANumero(cantidad_ingreso),
-          stock_minimo: 0,
-          categoria_id: catId,
-          fecha_vencimiento: fechaVenc
-        })
-        if (inline) await reiniciarFormularioCarga()
-        else onSaved?.()
-        onClose()
         return
       }
 
@@ -322,9 +412,12 @@ const ProductoModal = ({
           categoria_id: catId,
           fecha_vencimiento: fechaVenc
         }
-        if (producto) {
+        if (producto && camposTocadosRef.current.has('stock_actual')) {
           payload.stock_base = stockBase
           payload.stock_actual = noControla ? 0 : Number(stock_actual) || 0
+        }
+        if (producto && noControla && camposTocadosRef.current.has('no_controla_stock')) {
+          payload.confirmar_quitar_stock = true
         }
         await productosAPI.update(idEditar, payload)
         onSaved?.()
@@ -363,44 +456,30 @@ const ProductoModal = ({
           const { data } = await productosAPI.getByCodigo(codigoTrim)
           if (cargaProductos && !producto) {
             const qty = cantidadIngresoANumero(formData.cantidad_ingreso)
-            const noControlaExistente = Boolean(data.no_controla_stock)
-            try {
-              await productosAPI.update(data.id, {
-                codigo: data.codigo,
-                nombre: (formData.nombre || data.nombre || '').trim(),
-                descripcion: formData.descripcion?.trim() || null,
-                categoria_id:
-                  formData.categoria_id === '' || formData.categoria_id == null
-                    ? null
-                    : Number(formData.categoria_id),
-                precio_compra: precioANumero(formData.precio_compra),
-                precio_venta: precioANumero(formData.precio_venta),
-                stock_minimo: Number(data.stock_minimo) || 0,
-                unidad_medida: formData.unidad_medida || 'unidad',
-                no_controla_stock: noControlaExistente,
-                no_verifica_vencimiento: Boolean(formData.no_verifica_vencimiento),
-                fecha_vencimiento:
-                  noControlaExistente || Boolean(formData.no_verifica_vencimiento)
-                    ? null
-                    : fechaISOParaInput(formData.fecha_vencimiento) || null,
-                ...(qty > 0 && !noControlaExistente ? { cantidad_ingreso: qty } : {})
-              })
-            } catch (upErr) {
-              alert(upErr.response?.data?.error || 'No se pudo actualizar precios y datos del producto')
+            if (qty > 0 && productoNoControlaStock(data)) {
+              alert(
+                `"${data.nombre}" no controla stock. Podés actualizar el precio, pero no sumar unidades.`
+              )
               return
             }
-            if (inline) {
-              if (cargaProductos) {
-                await reiniciarFormularioCarga()
-              } else {
-                setFormData(emptyForm(codigoInicial))
-                setStockEnBaseDatos(0)
-                setCodigoExisteEnBd(false)
-              }
+            try {
+              const { data: actualizado } = await productosAPI.ingresar(data.id, {
+                ...(qty > 0 ? { cantidad: qty } : {}),
+                ...(String(formData.precio_compra ?? '').trim() !== ''
+                  ? { precio_compra: precioANumero(formData.precio_compra) }
+                  : {}),
+                ...(String(formData.precio_venta ?? '').trim() !== ''
+                  ? { precio_venta: precioANumero(formData.precio_venta) }
+                  : {})
+              })
+              if (inline) await reiniciarFormularioCarga()
+              const info = { producto: actualizado, cantidad: qty, fusionado: false }
+              onIngresoAutomatico?.(info)
+              onSaved?.(info)
+              onClose()
+            } catch (upErr) {
+              alert(upErr.response?.data?.error || 'No se pudo registrar la carga')
             }
-            onIngresoAutomatico?.()
-            onSaved?.()
-            onClose()
             return
           }
           if (onCodigoDuplicado) {
@@ -532,8 +611,20 @@ const ProductoModal = ({
                 name="codigo"
                 value={formData.codigo}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                readOnly={cargaProductos && !producto && codigoBloqueado}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent ${
+                  cargaProductos && !producto && codigoBloqueado ? 'bg-gray-100 text-gray-800' : ''
+                }`}
               />
+              {cargaProductos && !producto && codigoBloqueado && (
+                <button
+                  type="button"
+                  className="mt-1 text-xs text-brand-700 hover:underline"
+                  onClick={() => setCodigoBloqueado(false)}
+                >
+                  Cambiar código
+                </button>
+              )}
               {cargaProductos && !producto && (
                 <p className="text-xs text-gray-500 mt-1">
                   Por defecto se propone el siguiente número libre entre los códigos numéricos. Podés cambiarlo para
@@ -684,6 +775,7 @@ const ProductoModal = ({
                   Cantidad que ingresan {etiquetaCantidadUnidad(formData.unidad_medida)}
                 </label>
                 <input
+                  ref={cantidadRef}
                   type={esVentaPorMedidaDecimal(formData.unidad_medida) ? 'text' : 'number'}
                   inputMode={esVentaPorMedidaDecimal(formData.unidad_medida) ? 'decimal' : 'numeric'}
                   name="cantidad_ingreso"
@@ -753,7 +845,6 @@ const ProductoModal = ({
                 name="fecha_vencimiento"
                 value={fechaISOParaInput(formData.fecha_vencimiento)}
                 onChange={handleChange}
-                required
                 className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
               />
               <p className="text-xs text-gray-500 mt-1">

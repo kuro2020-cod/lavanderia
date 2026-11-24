@@ -19,6 +19,19 @@ export const METODOS_PROVEEDOR_ORDEN = ['efectivo', 'transferencia']
 export const fmtMoney = (n) =>
   `$${Number(n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
+/** Totales de milanesas y cigarrillos guardados solo en el último cierre del día. */
+export function totalesDiaCierre(cierre) {
+  const detalle = parseDetalleMetodosCierre(cierre)
+  const t = detalle?.totales_dia
+  if (!t || typeof t !== 'object') return null
+  const fila = (x) => ({
+    monto: Number(x?.monto || 0),
+    unidades: Number(x?.unidades || 0)
+  })
+  if (!t.milanesas && !t.cigarrillos) return null
+  return { milanesas: fila(t.milanesas), cigarrillos: fila(t.cigarrillos) }
+}
+
 export function retirosEfectivoCierre(cierre) {
   const detalle = parseDetalleMetodosCierre(cierre)
   const r = detalle?.retiros_efectivo

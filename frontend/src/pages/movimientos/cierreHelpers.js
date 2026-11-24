@@ -8,6 +8,7 @@ import {
   formatAperturaCajaHora,
   detalleModificacionesCaja,
   retirosEfectivoCierre,
+  totalesDiaCierre,
   SUBTITULO_RUBROS_CIERRE
 } from '../../utils/cierreCajaDisplay'
 
@@ -96,6 +97,25 @@ const fmtFechaRetiro = (v) => {
 }
 
 const escHtml = (s) => String(s ?? '').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+/** Total del día de milanesas y cigarrillos, solo en el último cierre. */
+export const bloqueTotalesDiaHtml = (detalle) => {
+  const data = totalesDiaCierre({ detalle_metodos: detalle })
+  if (!data) return ''
+  const fila = (label, r) => `
+    <div class="totales-dia-row">
+      <span>${label}</span>
+      <strong>${fmtMoney(r.monto)}</strong>
+    </div>
+    <p class="totales-dia-meta">${Number(r.unidades || 0).toLocaleString('es-ES', { maximumFractionDigits: 3 })} u.</p>`
+  return `
+    <div class="totales-dia">
+      <p class="totales-dia-title">Total del día</p>
+      <p class="totales-dia-sub">Milanesas y cigarrillos desde las 06:00</p>
+      ${fila('Milanesas', data.milanesas)}
+      ${fila('Cigarrillos', data.cigarrillos)}
+    </div>`
+}
 
 /** Detalle de retiros de efectivo para el PDF del cierre. */
 export const bloqueRetirosEfectivoHtml = (detalle) => {

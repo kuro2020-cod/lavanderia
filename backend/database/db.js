@@ -105,7 +105,7 @@ const initDatabase = async () => {
         motivo TEXT,
         usuario VARCHAR(255),
         fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (producto_id) REFERENCES productos(id) ON DELETE CASCADE
+        FOREIGN KEY (producto_id) REFERENCES productos(id) ON DELETE RESTRICT
       )
     `);
 
@@ -121,6 +121,29 @@ const initDatabase = async () => {
     `);
     await query(`
       CREATE INDEX IF NOT EXISTS idx_movimientos_fecha ON movimientos(fecha)
+    `);
+
+    // Borrar un producto no puede borrar el historial de cargas y ventas.
+    await query(`
+      DO $$
+      DECLARE cname text;
+      BEGIN
+        SELECT con.conname INTO cname
+        FROM pg_constraint con
+        JOIN pg_class rel ON rel.oid = con.conrelid
+        JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+        WHERE rel.relname = 'movimientos'
+          AND nsp.nspname = 'public'
+          AND con.contype = 'f'
+          AND pg_get_constraintdef(con.oid) ILIKE '%REFERENCES productos%'
+          AND pg_get_constraintdef(con.oid) ILIKE '%ON DELETE CASCADE%';
+        IF cname IS NOT NULL THEN
+          EXECUTE format('ALTER TABLE movimientos DROP CONSTRAINT %I', cname);
+          ALTER TABLE movimientos
+            ADD CONSTRAINT movimientos_producto_id_fkey
+            FOREIGN KEY (producto_id) REFERENCES productos(id) ON DELETE RESTRICT;
+        END IF;
+      END $$;
     `);
 
     await query(`

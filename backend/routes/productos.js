@@ -78,10 +78,28 @@ router.get('/:id', async (req, res) => {
 // Crear nuevo producto
 router.post('/', async (req, res) => {
   try {
-    const producto = await Producto.create(req.body);
+    const producto = await Producto.create(req.body, req.user);
     res.status(201).json(producto);
   } catch (error) {
+    if (error?.code === 'PRODUCTO_NOMBRE_DUPLICADO') {
+      return res.status(409).json({
+        error: error.message,
+        code: error.code,
+        producto_id: error.productoId
+      });
+    }
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Sumar stock (carga). No reemplaza el stock por un número viejo.
+router.post('/:id/ingreso', async (req, res) => {
+  try {
+    const producto = await Producto.ingresarStock(req.params.id, req.body || {}, req.user);
+    res.json(producto);
+  } catch (error) {
+    const status = /no encontrad/i.test(error.message) ? 404 : 400;
+    res.status(status).json({ error: error.message });
   }
 });
 
@@ -123,6 +141,11 @@ router.delete('/:id', requireAdmin, async (req, res) => {
     await Producto.delete(req.params.id);
     res.json({ success: true });
   } catch (error) {
+    if (error?.code === '23503') {
+      return res.status(400).json({
+        error: 'No se puede eliminar: el producto tiene movimientos de stock y ese historial se conserva.'
+      });
+    }
     res.status(500).json({ error: error.message });
   }
 });

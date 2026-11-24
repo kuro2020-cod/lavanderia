@@ -22,7 +22,7 @@ const CargaProductos = () => {
   const [listaProductos, setListaProductos] = useState([])
   const [loadingLista, setLoadingLista] = useState(false)
   const [busquedaLista, setBusquedaLista] = useState('')
-  const [codigoDesdeLista, setCodigoDesdeLista] = useState('')
+  const [productoDesdeLista, setProductoDesdeLista] = useState(null)
   const inputScanRef = useRef(null)
 
   const focusScan = useCallback(() => {
@@ -98,12 +98,24 @@ const CargaProductos = () => {
     focusScan()
   }
 
-  const notificarIngresoGuardado = () => {
-    setMensaje({
-      tipo: 'ok',
-      texto:
-        'Cambios guardados: stock (si hubo ingreso), precios y datos del producto quedaron actualizados en la base de datos.'
-    })
+  const notificarIngresoGuardado = (info) => {
+    const p = info?.producto
+    const qty = Number(info?.cantidad)
+    if (p && qty > 0) {
+      setMensaje({
+        tipo: 'ok',
+        texto: info.fusionado
+          ? `Ese nombre ya existía. Se sumaron ${qty} a "${p.nombre}" y no se creó otro producto. Stock actual: ${p.stock_actual}.`
+          : `Carga registrada: ingresaron ${qty} de "${p.nombre}". Stock actual: ${p.stock_actual}.`
+      })
+    } else if (p) {
+      setMensaje({
+        tipo: 'ok',
+        texto: `Se actualizó "${p.nombre}". El stock no se modificó y sigue en ${p.stock_actual}.`
+      })
+    } else {
+      setMensaje({ tipo: 'ok', texto: 'Cambios guardados.' })
+    }
     loadListaProductos()
   }
 
@@ -223,11 +235,12 @@ const CargaProductos = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
           <div className="bg-gray-50 rounded-xl p-6 border border-gray-200 min-w-0">
             <ProductoModal
-              key={codigoDesdeLista || 'nuevo-sugerido'}
+              key={productoDesdeLista?.id ? `prod-${productoDesdeLista.id}` : 'nuevo-sugerido'}
               inline
               cargaProductos
               producto={null}
-              codigoInicial={codigoDesdeLista}
+              productoParaCargar={productoDesdeLista}
+              codigoInicial={productoDesdeLista?.codigo || ''}
               onClose={() => {}}
               onIngresoAutomatico={notificarIngresoGuardado}
             />
@@ -250,7 +263,7 @@ const CargaProductos = () => {
               </div>
               <button
                 type="button"
-                onClick={() => setCodigoDesdeLista('')}
+                onClick={() => setProductoDesdeLista(null)}
                 className="mt-3 text-sm text-brand-600 hover:text-brand-800 hover:underline"
               >
                 Nuevo producto (código sugerido)
@@ -269,24 +282,21 @@ const CargaProductos = () => {
                 <ul className="space-y-1">
                   {productosListaFiltrados.map((p) => {
                     const cod = p.codigo != null && String(p.codigo).trim() !== '' ? String(p.codigo).trim() : null
-                    const seleccionado = cod != null && codigoDesdeLista === cod
+                    const seleccionado = productoDesdeLista?.id === p.id
                     return (
                       <li key={p.id}>
                         <button
                           type="button"
-                          disabled={!cod}
-                          onClick={() => cod && setCodigoDesdeLista(cod)}
+                          onClick={() => setProductoDesdeLista(p)}
                           className={`w-full text-left rounded-lg px-3 py-2.5 transition-colors border ${
                             seleccionado
                               ? 'bg-blue-50 border-blue-200 ring-1 ring-blue-200'
-                              : cod
-                                ? 'border-transparent hover:bg-gray-50 hover:border-gray-100'
-                                : 'border-transparent opacity-60 cursor-not-allowed'
+                              : 'border-transparent hover:bg-gray-50 hover:border-gray-100'
                           }`}
                         >
                           <p className="font-medium text-gray-900 text-sm leading-snug">{p.nombre}</p>
                           <p className="text-xs font-mono text-gray-600 mt-0.5">
-                            {cod || 'Sin código — no se puede elegir desde aquí'}
+                            {cod || 'Sin código'}
                           </p>
                           <p className="text-xs text-gray-400 mt-1">
                             Stock: {fmtCantidadStock(p.stock_actual ?? 0, p.unidad_medida)}

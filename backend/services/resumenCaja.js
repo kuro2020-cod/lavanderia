@@ -1,10 +1,10 @@
 import db from '../database/db.js';
 import { SQL_CAFE_MAQUINA, getResumenCafeMaquina } from './cafeMaquina.js';
-import { SQL_MILANESAS } from './milanesas.js';
+import { getContadorMilanesasJornada, HORA_CORTE_MILANESAS, SQL_MILANESAS } from './milanesas.js';
 import { SQL_SANDWICH_MILANESAS } from './sandwichMilanesas.js';
 import { SQL_ROLLITOS_JAMON_QUESO } from './rollitosJamonQueso.js';
-import { SQL_CIGARRILLOS } from './cigarrillos.js';
-import { condicionPeriodoCaja, fechaLocalISO, normalizarFechaISO } from '../utils/fechaCaja.js';
+import { getContadorCigarrillosJornada, SQL_CIGARRILLOS } from './cigarrillos.js';
+import { condicionPeriodoCaja, esUltimoCierreDelDia, fechaLocalISO, normalizarFechaISO } from '../utils/fechaCaja.js';
 import { METODOS_VENTA, metodosVacios, metodosProveedorVacios } from '../utils/metodosPago.js';
 import { aliasesUsuario, esUsuarioVendedor } from '../utils/usuarioAliases.js';
 import { AperturaCaja } from '../models/AperturaCaja.js';
@@ -998,6 +998,35 @@ export async function getResumenCaja(fecha, options = {}) {
   // Fecha de caja del turno (día de apertura) si cruza medianoche.
   const fechaCaja = periodo.modo === 'turno' ? periodo.fecha : fecha;
 
+  let totalesDia = null;
+  if (esUltimoCierreDelDia(fechaCaja, new Date(), HORA_CORTE_MILANESAS)) {
+    const [milanesas, cigarrillos] = await Promise.all([
+      getContadorMilanesasJornada(),
+      getContadorCigarrillosJornada()
+    ]);
+    totalesDia = {
+      milanesas: {
+        monto: round2(milanesas.monto),
+        unidades: milanesas.unidades
+      },
+      cigarrillos: {
+        monto: round2(cigarrillos.monto),
+        unidades: cigarrillos.unidades
+      }
+    };
+  }
+
+  const detalleCierre = construirDetalleCierre(
+    ventas,
+    proveedores,
+    metodos,
+    rubros,
+    retirosEfectivo,
+    cafeMaquina,
+    ingresosEfectivo
+  );
+  if (totalesDia) detalleCierre.totales_dia = totalesDia;
+
   return {
     fecha: fechaCaja,
     fechaSolicitada: fecha,
@@ -1015,6 +1044,7 @@ export async function getResumenCaja(fecha, options = {}) {
     ingresosEfectivo,
     cobrosFiados,
     rubros,
+    totalesDia,
     cafeMaquina,
     metodos,
     totalMovimientos: ventas.totalMovimientos,
@@ -1025,14 +1055,6 @@ export async function getResumenCaja(fecha, options = {}) {
     totalGeneralCobrosFiados,
     totalGeneralNeto,
     totalGeneral: totalGeneralNeto,
-    detalleCierre: construirDetalleCierre(
-      ventas,
-      proveedores,
-      metodos,
-      rubros,
-      retirosEfectivo,
-      cafeMaquina,
-      ingresosEfectivo
-    )
+    detalleCierre
   };
 }

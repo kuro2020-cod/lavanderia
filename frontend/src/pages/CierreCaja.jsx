@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { hoyLocalISO } from '../utils/fechas'
 import { claseMontoNeto, extraRubroCierre, SUBTITULO_RUBROS_CIERRE } from '../utils/cierreCajaDisplay'
 import ContadorCafeMaquina from '../components/ContadorCafeMaquina'
+import TotalesDiaCierre from '../components/TotalesDiaCierre'
 
 const fmtMoney = (n) =>
   `$${Number(n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -583,6 +584,10 @@ const CierreCaja = () => {
               keys={Object.keys(labelsProv)}
               negativo
             />
+
+            {resumen?.totalesDia && (
+              <TotalesDiaCierre totales={resumen.totalesDia} />
+            )}
 
             {Array.isArray(resumen?.rubros?.lista) && resumen.rubros.lista.length > 0 && (
               <div className="space-y-2">

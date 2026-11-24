@@ -35,7 +35,8 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
-import { fmtMoney, lineasTotalesCierre, lineasRubrosCierre, extraRubroCierre, claseMontoNeto, datosAperturaCierre, retirosEfectivoCierre } from '../utils/cierreCajaDisplay'
+import { fmtMoney, lineasTotalesCierre, lineasRubrosCierre, extraRubroCierre, claseMontoNeto, datosAperturaCierre, retirosEfectivoCierre, totalesDiaCierre } from '../utils/cierreCajaDisplay'
+import TotalesDiaCierre from './TotalesDiaCierre'
 import ArqueoParcialModal from './ArqueoParcialModal'
 import AlertaVencimientos from './AlertaVencimientos'
 import { esAccesoLimitado } from '../utils/acceso'
@@ -169,6 +170,7 @@ const Layout = ({ children }) => {
   const rubrosCierre = lineasRubrosCierre(cierreTurno)
   const aperturaCierre = datosAperturaCierre(cierreTurno)
   const retirosCierre = retirosEfectivoCierre(cierreTurno)
+  const totalesDia = totalesDiaCierre(cierreTurno)
 
   const navItemClass = (isActive) => {
     if (cajaBloqueada) {
@@ -447,11 +449,16 @@ const Layout = ({ children }) => {
                   })}
                 </p>
               )}
-              {(totalesCierre.length > 0 || rubrosCierre.length > 0 || aperturaCierre || retirosCierre) && (
+              {(totalesCierre.length > 0 || rubrosCierre.length > 0 || aperturaCierre || retirosCierre || totalesDia) && (
                 <div className="mt-5 text-left rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50/80 dark:bg-slate-800/80 p-4 space-y-1.5">
                   <p className="text-xs font-bold text-slate-600 dark:text-slate-200 uppercase tracking-wide text-center mb-2">
                     Totales de este turno
                   </p>
+                  {totalesDia && (
+                    <div className="mb-3">
+                      <TotalesDiaCierre totales={totalesDia} compact />
+                    </div>
+                  )}
                   {aperturaCierre && (
                     <div className="mb-2 pb-2 border-b border-slate-200 dark:border-slate-600 space-y-1.5">
                       <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300 mb-1">

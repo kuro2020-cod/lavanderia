@@ -6,7 +6,7 @@ import {
   parsePagosDesglose,
   consolidarPromosEnMovimientos
 } from '../../utils/movimientosPromo'
-import { hoyLocalISO } from '../../utils/fechas'
+import { addDaysISO, hoyLocalISO } from '../../utils/fechas'
 
 const hoyISO = hoyLocalISO
 
@@ -56,7 +56,7 @@ const MovimientosRegistro = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterTipo, setFilterTipo] = useState('todos')
   const [filterMetodoPago, setFilterMetodoPago] = useState('todos')
-  const [fechaDesde, setFechaDesde] = useState(() => hoyISO())
+  const [fechaDesde, setFechaDesde] = useState(() => addDaysISO(hoyISO(), -14))
   const [fechaHasta, setFechaHasta] = useState(() => hoyISO())
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10

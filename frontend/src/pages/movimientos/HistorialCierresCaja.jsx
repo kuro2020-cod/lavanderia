@@ -11,9 +11,11 @@ import {
   bloqueRubrosHtml,
   bloqueAperturaCajaHtml,
   bloqueRetirosEfectivoHtml,
+  bloqueTotalesDiaHtml,
   formatFechaCaja
 } from './cierreHelpers'
-import { esDetalleCierreV2, claseMontoNeto, extraRubroCierre, lineasRubrosCierre, formatAperturaCajaHora, detalleModificacionesCaja } from '../../utils/cierreCajaDisplay'
+import { esDetalleCierreV2, claseMontoNeto, extraRubroCierre, lineasRubrosCierre, formatAperturaCajaHora, detalleModificacionesCaja, totalesDiaCierre } from '../../utils/cierreCajaDisplay'
+import TotalesDiaCierre from '../../components/TotalesDiaCierre'
 
 const ITEMS_PAGE = 20
 
@@ -133,6 +135,7 @@ const HistorialCierresCaja = () => {
     const rubrosHtml = bloqueRubrosHtml(det)
     const aperturaHtml = bloqueAperturaCajaHtml(det)
     const retirosHtml = bloqueRetirosEfectivoHtml(det)
+    const totalesDiaHtml = bloqueTotalesDiaHtml(det)
     const obs = cierre.observaciones
       ? `<div class="obs"><strong>Observaciones</strong><p>${esc(cierre.observaciones)}</p></div>`
       : ''
@@ -299,6 +302,11 @@ const HistorialCierresCaja = () => {
           letter-spacing:.06em;
           color:#047857;
         }
+        .totales-dia{margin:16px 0 4px;padding:12px 14px;border:1px solid #bae6fd;border-radius:12px;background:#f0f9ff;}
+        .totales-dia-title{margin:0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#0369a1;}
+        .totales-dia-sub{margin:2px 0 8px;font-size:11px;color:#64748b;}
+        .totales-dia-row{display:flex;justify-content:space-between;gap:12px;font-size:14px;color:#0c4a6e;}
+        .totales-dia-meta{margin:0 0 8px;text-align:right;font-size:11px;color:#64748b;}
         .retiros-wrap{margin:16px 0 4px;}
         .retiros-title{
           margin:0 0 8px;
@@ -419,6 +427,7 @@ const HistorialCierresCaja = () => {
             <p class="row-meta"><strong>Cerrado por:</strong> ${esc(cierre.cerrado_por) || '—'}</p>
             ${obs}
             ${aperturaHtml}
+            ${totalesDiaHtml}
             ${retirosHtml}
             <div class="tbl-wrap">
               <table>
@@ -547,6 +556,7 @@ const HistorialCierresCaja = () => {
             {pagina.map((c, i) => {
               const det = parseDetalleCierre(c.detalle_metodos)
               const rubros = lineasRubrosCierre(c)
+              const totalesDia = totalesDiaCierre(c)
               const ig = indiceGlobal(i)
               const abierto = abiertos.has(c.id)
               return (
@@ -593,6 +603,11 @@ const HistorialCierresCaja = () => {
                       }`}
                     />
                   </button>
+                  {totalesDia && (
+                    <div className="mt-3">
+                      <TotalesDiaCierre totales={totalesDia} compact />
+                    </div>
+                  )}
                   {abierto && (
                     <>
                       {c.observaciones ? (

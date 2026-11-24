@@ -1,6 +1,29 @@
 const TZ_AR = 'America/Argentina/Buenos_Aires';
 
-/** Fecha calendario en Argentina (YYYY-MM-DD), independiente del TZ del proceso Node. */
+/** Hora 0–23 en Argentina. Medianoche queda en 0. */
+export function horaLocalAR(d = new Date()) {
+  const fecha = d instanceof Date ? d : new Date(d);
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: TZ_AR,
+    hour: '2-digit',
+    hourCycle: 'h23'
+  }).formatToParts(fecha);
+  const h = Number(parts.find((p) => p.type === 'hour')?.value);
+  return Number.isFinite(h) ? h : 0;
+}
+
+/**
+ * Último cierre del día: el turno que arrancó el día anterior y se cierra
+ * pasada la medianoche, antes del corte de las 06:00.
+ */
+export function esUltimoCierreDelDia(fechaCierre, ahora = new Date(), horaCorte = 6) {
+  const hora = horaLocalAR(ahora);
+  if (hora >= horaCorte) return false;
+  const hoy = fechaLocalISO(ahora);
+  const fecha = normalizarFechaISO(fechaCierre);
+  return Boolean(fecha && fecha < hoy);
+}
+
 export function fechaLocalISO(d = new Date()) {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: TZ_AR,

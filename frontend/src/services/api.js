@@ -62,6 +62,7 @@ export const productosAPI = {
     api.get(`/productos/codigo/${encodeURIComponent(String(codigo).trim())}`),
   create: (data) => api.post('/productos', data),
   update: (id, data) => api.put(`/productos/${id}`, data),
+  ingresar: (id, data) => api.post(`/productos/${id}/ingreso`, data),
   updateCategoria: (id, categoria_id) => api.put(`/productos/${id}/categoria`, { categoria_id }),
   delete: (id) => api.delete(`/productos/${id}`),
   getLowStock: () => api.get('/productos/stock/bajo'),
