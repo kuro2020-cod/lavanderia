@@ -826,6 +826,95 @@ const initDatabase = async () => {
         ON dashboard_contador_reinicios(contador_id, created_at DESC)
     `);
 
+    await query(`
+      CREATE TABLE IF NOT EXISTS clientes (
+        id SERIAL PRIMARY KEY,
+        nombre VARCHAR(255) NOT NULL,
+        telefono VARCHAR(50),
+        direccion TEXT,
+        notas TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await query(`
+      CREATE TABLE IF NOT EXISTS cliente_ficha (
+        id SERIAL PRIMARY KEY,
+        cliente_id INTEGER NOT NULL REFERENCES clientes(id) ON DELETE CASCADE,
+        concepto VARCHAR(255) NOT NULL,
+        detalle TEXT,
+        orden INTEGER NOT NULL DEFAULT 0
+      )
+    `);
+    await query(`
+      CREATE INDEX IF NOT EXISTS idx_cliente_ficha_cliente
+        ON cliente_ficha(cliente_id, orden)
+    `);
+
+    await query(`
+      CREATE TABLE IF NOT EXISTS pedidos_lavanderia (
+        id SERIAL PRIMARY KEY,
+        cliente_id INTEGER REFERENCES clientes(id) ON DELETE SET NULL,
+        cliente_nombre VARCHAR(255) NOT NULL,
+        servicio TEXT NOT NULL,
+        fecha_entrega DATE,
+        observaciones TEXT,
+        estado VARCHAR(30) NOT NULL DEFAULT 'recibido'
+          CHECK (estado IN ('recibido', 'en_lavado', 'listo', 'entregado')),
+        total NUMERIC(12, 2) NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await query(`
+      CREATE TABLE IF NOT EXISTS pedido_lavanderia_items (
+        id SERIAL PRIMARY KEY,
+        pedido_id INTEGER NOT NULL REFERENCES pedidos_lavanderia(id) ON DELETE CASCADE,
+        prenda VARCHAR(255) NOT NULL,
+        cantidad NUMERIC(10, 2) NOT NULL DEFAULT 1,
+        precio NUMERIC(12, 2) NOT NULL DEFAULT 0,
+        orden INTEGER NOT NULL DEFAULT 0
+      )
+    `);
+    await query(`
+      CREATE INDEX IF NOT EXISTS idx_pedidos_lavanderia_fecha
+        ON pedidos_lavanderia(created_at DESC)
+    `);
+    await query(`
+      ALTER TABLE pedidos_lavanderia
+        ALTER COLUMN servicio TYPE TEXT
+    `);
+
+    await query(`
+      CREATE TABLE IF NOT EXISTS prendas_lavanderia (
+        id SERIAL PRIMARY KEY,
+        nombre VARCHAR(255) NOT NULL,
+        precio NUMERIC(12, 2) NOT NULL DEFAULT 0,
+        orden INTEGER NOT NULL DEFAULT 0
+      )
+    `);
+    await query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_prendas_lavanderia_nombre
+        ON prendas_lavanderia (LOWER(nombre))
+    `);
+    const { rows: prendasCount } = await query(`SELECT COUNT(*)::int AS n FROM prendas_lavanderia`);
+    if ((prendasCount[0]?.n ?? 0) === 0) {
+      const prendasIniciales = [
+        ['Camisa', 1500],
+        ['Pantalón', 1800],
+        ['Remera', 1200],
+        ['Sábana', 2000],
+        ['Toalla', 800],
+        ['Acolchado', 4500],
+        ['Buzo', 2500]
+      ];
+      for (let i = 0; i < prendasIniciales.length; i += 1) {
+        const [nombre, precio] = prendasIniciales[i];
+        await query(
+          `INSERT INTO prendas_lavanderia (nombre, precio, orden) VALUES ($1, $2, $3)`,
+          [nombre, precio, i]
+        );
+      }
+    }
+
     // Categorías de ejemplo solo en base vacía (si no, al borrar una y reiniciar el servidor volverían a insertarse)
     const { rows: countRows } = await query(`SELECT COUNT(*)::int AS n FROM categorias`);
     const totalCategorias = countRows[0]?.n ?? 0;

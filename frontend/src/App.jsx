@@ -8,26 +8,22 @@ import Productos from './pages/Productos'
 import Categorias from './pages/Categorias'
 import MovimientosLayout from './pages/movimientos/MovimientosLayout'
 import MovimientosHub from './pages/movimientos/MovimientosHub'
-import HistorialCierresCaja from './pages/movimientos/HistorialCierresCaja'
 import MovimientosRegistro from './pages/movimientos/MovimientosRegistro'
 import MisVentas from './pages/movimientos/MisVentas'
 import CargaProductos from './pages/CargaProductos'
 import BajaProductos from './pages/BajaProductos'
 import Incidencias from './pages/Incidencias'
-import Estadisticas from './pages/Estadisticas'
-import Ventas from './pages/Ventas'
+import Recepcion from './pages/Recepcion'
 import Usuarios from './pages/Usuarios'
-import CierreCaja from './pages/CierreCaja'
 import Promociones from './pages/Promociones'
 import PagoProveedores from './pages/PagoProveedores'
-import Retiros from './pages/Retiros'
-import IngresosEfectivo from './pages/IngresosEfectivo'
 import Fiados from './pages/Fiados'
 import Faltantes from './pages/Faltantes'
-import Asistente from './pages/Asistente'
 import MercadoPago from './pages/MercadoPago'
 import Vencimientos from './pages/Vencimientos'
-import UsoNegocio from './pages/UsoNegocio'
+import Clientes from './pages/Clientes'
+import Prendas from './pages/Prendas'
+import Pedidos from './pages/Pedidos'
 import LoadingScreen from './components/ui/LoadingScreen'
 import { esAccesoLimitado, rutaHome } from './utils/acceso'
 import { esRolAdmin } from './utils/roles'
@@ -63,11 +59,11 @@ function AppRoutes() {
         />
         <Route
           path="/ventas"
-          element={limitado ? <Navigate to={home} replace /> : <Ventas />}
+          element={limitado ? <Navigate to={home} replace /> : <Recepcion />}
         />
         <Route path="/promociones" element={<Promociones />} />
         <Route path="/carga-productos" element={<CargaProductos />} />
-        <Route path="/pedidos" element={<Navigate to="/faltantes?tab=stock_bajo" replace />} />
+        <Route path="/pedidos" element={<Pedidos />} />
         <Route path="/vencimientos" element={<Vencimientos />} />
         <Route
           path="/baja-productos"
@@ -85,14 +81,9 @@ function AppRoutes() {
             </AdminOnly>
           }
         />
-        <Route
-          path="/estadisticas"
-          element={
-            <AdminOnly>
-              <Estadisticas />
-            </AdminOnly>
-          }
-        />
+        <Route path="/estadisticas" element={<Navigate to={home} replace />} />
+        <Route path="/clientes" element={<Clientes />} />
+        <Route path="/prendas" element={<Prendas />} />
         <Route path="/productos" element={<Productos />} />
         <Route
           path="/categorias"
@@ -102,14 +93,7 @@ function AppRoutes() {
             </AdminOnly>
           }
         />
-        <Route
-          path="/asistente"
-          element={
-            <AdminOnly>
-              <Asistente />
-            </AdminOnly>
-          }
-        />
+        <Route path="/asistente" element={<Navigate to={home} replace />} />
         <Route
           path="/usuarios"
           element={
@@ -119,13 +103,13 @@ function AppRoutes() {
           }
         />
         <Route path="/pago-proveedores" element={<PagoProveedores />} />
-        <Route path="/retiros" element={<Retiros />} />
-        <Route path="/ingresos-efectivo" element={<IngresosEfectivo />} />
+        <Route path="/retiros" element={<Navigate to={home} replace />} />
+        <Route path="/ingresos-efectivo" element={<Navigate to={home} replace />} />
         <Route path="/fiados" element={<Fiados />} />
         <Route path="/faltantes" element={<Faltantes />} />
-        <Route path="/uso-negocio" element={<UsoNegocio />} />
+        <Route path="/uso-negocio" element={<Navigate to={home} replace />} />
         <Route path="/mercadopago" element={<MercadoPago />} />
-        <Route path="/cierre-caja" element={<CierreCaja />} />
+        <Route path="/cierre-caja" element={<Navigate to={home} replace />} />
         <Route
           path="/mis-ventas"
           element={
@@ -141,7 +125,7 @@ function AppRoutes() {
           }
         >
           <Route index element={<MovimientosHub />} />
-          <Route path="cierres" element={<HistorialCierresCaja />} />
+          <Route path="cierres" element={<Navigate to="/movimientos" replace />} />
           <Route path="registro" element={<MovimientosRegistro />} />
         </Route>
         <Route path="*" element={<Navigate to={home} replace />} />

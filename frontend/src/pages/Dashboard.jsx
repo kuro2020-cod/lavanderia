@@ -2,10 +2,8 @@ import { useEffect, useState } from 'react'
 import { categoriasAPI, dashboardAPI, dashboardContadoresAPI, productosAPI } from '../services/api'
 import { Package, FolderTree, DollarSign, AlertTriangle, TrendingUp, ArrowRight, Plus, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { fmtCantidadStock } from '../utils/unidades'
 import { fmtFechaCorta } from '../utils/fechas'
-import ContadorCafeMaquina from '../components/ContadorCafeMaquina'
-import { ContadorMilanesas, ContadorCigarrillos, ContadorCategoria } from '../components/ContadorMilanesas'
+import { ContadorCategoria } from '../components/ContadorMilanesas'
 
 const FRECUENCIAS = [
   { value: 'diario', label: 'Diario (cada día a las 06:00)' },
@@ -13,13 +11,8 @@ const FRECUENCIAS = [
   { value: 'mensual', label: 'Mensual (el día 1 a las 06:00)' }
 ]
 
-/** La alerta destacada de stock bajo solo si hay al menos esta cantidad de productos afectados */
-const UMBRAL_ALERTA_STOCK_BAJO = 3
-
 const Dashboard = () => {
   const [stats, setStats] = useState(null)
-  const [productosStockBajo, setProductosStockBajo] = useState([])
-  const [totalProductosStockBajo, setTotalProductosStockBajo] = useState(0)
   const [productosVencer, setProductosVencer] = useState([])
   const [loading, setLoading] = useState(true)
   const [categorias, setCategorias] = useState([])
@@ -30,7 +23,6 @@ const Dashboard = () => {
 
   useEffect(() => {
     loadStats()
-    loadProductosStockBajo()
     loadProductosVencer()
     loadCategorias()
   }, [])
@@ -52,17 +44,6 @@ const Dashboard = () => {
       console.error('Error al cargar estadísticas:', error)
     } finally {
       setLoading(false)
-    }
-  }
-
-  const loadProductosStockBajo = async () => {
-    try {
-      const response = await productosAPI.getLowStock()
-      const lista = response.data || []
-      setTotalProductosStockBajo(lista.length)
-      setProductosStockBajo(lista.slice(0, 5))
-    } catch (error) {
-      console.error('Error al cargar productos con stock bajo:', error)
     }
   }
 
@@ -192,15 +173,6 @@ const Dashboard = () => {
           </button>
         </div>
         <div className="space-y-4">
-          {stats?.cafeMaquina?.actual && (
-            <ContadorCafeMaquina resumen={stats.cafeMaquina} showHistorial />
-          )}
-          {stats?.milanesas?.actual && (
-            <ContadorMilanesas resumen={stats.milanesas} showHistorial />
-          )}
-          {stats?.cigarrillos?.actual && (
-            <ContadorCigarrillos resumen={stats.cigarrillos} showHistorial />
-          )}
           {(stats?.contadoresCategoria || []).map((contador) => (
             <ContadorCategoria
               key={contador.id}
@@ -209,14 +181,11 @@ const Dashboard = () => {
               onEliminar={() => eliminarContador(contador)}
             />
           ))}
-          {!stats?.cafeMaquina?.actual &&
-            !stats?.milanesas?.actual &&
-            !stats?.cigarrillos?.actual &&
-            !(stats?.contadoresCategoria || []).length && (
-              <p className="text-sm text-slate-500 bg-white rounded-xl border border-slate-200 px-4 py-6 text-center">
-                Todavía no hay un contador agregado. Elegí una categoría y cada cuánto se reinicia.
-              </p>
-            )}
+          {!(stats?.contadoresCategoria || []).length && (
+            <p className="text-sm text-slate-500 bg-white rounded-xl border border-slate-200 px-4 py-6 text-center">
+              Todavía no hay un contador agregado. Elegí una categoría y cada cuánto se reinicia.
+            </p>
+          )}
         </div>
       </div>
 
@@ -373,121 +342,6 @@ const Dashboard = () => {
           </div>
         </div>
       )}
-
-      {/* Grid de secciones */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Productos con Stock Bajo: alerta solo si hay UMBRAL_ALERTA_STOCK_BAJO o más */}
-        {totalProductosStockBajo >= UMBRAL_ALERTA_STOCK_BAJO ? (
-          <div className="bg-white rounded-lg shadow p-6 border-l-4 border-red-500">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-semibold text-gray-800 flex items-center">
-                <AlertTriangle className="mr-2 text-red-500" size={20} />
-                Productos con Stock Bajo ({totalProductosStockBajo})
-              </h3>
-              <Link
-                to="/productos"
-                className="text-brand-600 hover:text-brand-800 text-sm flex items-center"
-              >
-                Ver todos <ArrowRight size={16} className="ml-1" />
-              </Link>
-            </div>
-            <p className="text-sm text-gray-600 mb-3">
-              Alerta activa: hay {totalProductosStockBajo} producto{totalProductosStockBajo !== 1 ? 's' : ''} en o por
-              debajo del mínimo.
-            </p>
-            <div className="space-y-3">
-              {productosStockBajo.map((producto) => (
-                <div
-                  key={producto.id}
-                  className="flex justify-between items-center p-3 bg-red-50 rounded-lg border border-red-200"
-                >
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-800">{producto.nombre}</p>
-                    <p className="text-sm text-gray-600">
-                      {producto.categoria_nombre || 'Sin categoría'}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-red-600 font-bold">
-                      {fmtCantidadStock(producto.stock_actual, producto.unidad_medida)}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Mín: {producto.stock_minimo}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-xl font-semibold text-gray-800 flex items-center mb-4">
-              <AlertTriangle
-                className={`mr-2 ${totalProductosStockBajo === 0 ? 'text-green-500' : 'text-amber-500'}`}
-                size={20}
-              />
-              Productos con Stock Bajo
-            </h3>
-            {totalProductosStockBajo === 0 ? (
-              <p className="text-gray-600 text-center py-4">
-                ¡Excelente! No hay productos con stock bajo en este momento.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {productosStockBajo.map((producto) => (
-                  <div
-                    key={producto.id}
-                    className="flex justify-between items-center py-2 px-3 rounded-lg bg-amber-50 border border-amber-100"
-                  >
-                    <span className="font-medium text-gray-800">{producto.nombre}</span>
-                    <span className="text-gray-700 tabular-nums font-medium">
-                      {fmtCantidadStock(producto.stock_actual, producto.unidad_medida)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Top Productos */}
-        {stats?.topProductos && stats.topProductos.length > 0 ? (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-xl font-semibold text-gray-800 mb-4">Top 5 Productos con Más Stock</h3>
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Producto</th>
-                    <th className="text-right py-3 px-4 font-semibold text-gray-700">Stock</th>
-                    <th className="text-right py-3 px-4 font-semibold text-gray-700">Precio Venta</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.topProductos.map((producto, index) => (
-                    <tr key={index} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4">{producto.nombre}</td>
-                      <td className="py-3 px-4 text-right">
-                        {fmtCantidadStock(producto.stock_actual, producto.unidad_medida)}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        ${Number(producto.precio_venta || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-xl font-semibold text-gray-800 mb-4">Top 5 Productos con Más Stock</h3>
-            <p className="text-gray-600 text-center py-4">
-              No hay productos registrados aún.
-            </p>
-          </div>
-        )}
-      </div>
     </div>
   )
 }

@@ -7,7 +7,7 @@ import {
   ArrowLeftRight,
   ScanBarcode,
   BarChart3,
-  ShoppingCart,
+  Shirt,
   Users,
   LogOut,
   PanelLeftClose,
@@ -20,18 +20,15 @@ import {
   PackageMinus,
   AlertTriangle,
   ClipboardList,
-  Banknote,
   BookUser,
   Landmark,
-  ArrowDownToLine,
   Moon,
   Sun,
-  Sparkles,
   ChevronDown,
   Settings,
   CalendarClock,
   Menu,
-  Store
+  Contact
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
@@ -44,11 +41,11 @@ import { esRolAdmin, rolVisible } from '../utils/roles'
 
 const Layout = ({ children }) => {
   const location = useLocation()
-  const { user, logout, cajaBloqueada: cajaSesion, cierreTurno } = useAuth()
+  const { user, logout, cierreTurno } = useAuth()
   const { isDark, toggleTheme } = useTheme()
   const isAdmin = esRolAdmin(user?.rol)
   const limitado = esAccesoLimitado(user)
-  const cajaBloqueada = !limitado && cajaSesion
+  const cajaBloqueada = false
   const [isDesktop, setIsDesktop] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(min-width: 768px)').matches : true
   )
@@ -91,12 +88,31 @@ const Layout = ({ children }) => {
     {
       items: [
         { path: '/', icon: LayoutDashboard, label: 'Dashboard', adminOnly: true },
-        { path: '/ventas', icon: ShoppingCart, label: 'Ventas', hideIfLimitado: true }
+        { path: '/ventas', icon: Shirt, label: 'Recepción', hideIfLimitado: true }
       ]
+    },
+    {
+      id: 'clientes',
+      label: 'Clientes',
+      icon: Contact,
+      children: [{ path: '/clientes', icon: Contact, label: 'Clientes' }]
+    },
+    {
+      id: 'prendas',
+      label: 'Prendas',
+      icon: Shirt,
+      children: [{ path: '/prendas', icon: Shirt, label: 'Prendas' }]
+    },
+    {
+      id: 'pedidos',
+      label: 'Pedidos',
+      icon: ClipboardList,
+      children: [{ path: '/pedidos', icon: ClipboardList, label: 'Pedidos' }]
     },
     {
       id: 'stock',
       label: 'Stock',
+      hidden: true,
       icon: Package,
       children: [
         { path: '/carga-productos', icon: ScanBarcode, label: 'Carga de productos' },
@@ -114,9 +130,6 @@ const Layout = ({ children }) => {
       label: 'Caja',
       icon: Wallet,
       children: [
-        { path: '/cierre-caja', icon: Wallet, label: 'Cierre de caja' },
-        { path: '/retiros', icon: Banknote, label: 'Retiro efectivo' },
-        { path: '/ingresos-efectivo', icon: ArrowDownToLine, label: 'Ingreso efectivo' },
         { path: '/pago-proveedores', icon: Truck, label: 'Pago proveedores' },
         { path: '/mercadopago', icon: Landmark, label: 'Mercado Pago' },
         { path: '/fiados', icon: BookUser, label: 'Fiados' }
@@ -127,11 +140,8 @@ const Layout = ({ children }) => {
       label: 'Informes',
       icon: BarChart3,
       children: [
-        { path: '/estadisticas', icon: BarChart3, label: 'Estadísticas', adminOnly: true },
         { path: '/movimientos', icon: ArrowLeftRight, label: 'Movimientos', adminOnly: true },
-        { path: '/mis-ventas', icon: ArrowLeftRight, label: 'Mis movimientos', userOnly: true },
-        { path: '/uso-negocio', icon: Store, label: 'Uso en el negocio' },
-        { path: '/asistente', icon: Sparkles, label: 'Asistente', adminOnly: true }
+        { path: '/mis-ventas', icon: ArrowLeftRight, label: 'Mis movimientos', userOnly: true }
       ]
     },
     {
@@ -147,6 +157,7 @@ const Layout = ({ children }) => {
       }
       return { ...section, items: (section.items || []).filter(visibleItem) }
     })
+    .filter((section) => !section.hidden)
     .filter((section) => (section.children ? section.children.length > 0 : section.items.length > 0))
 
   useEffect(() => {
@@ -253,10 +264,13 @@ const Layout = ({ children }) => {
                 <Boxes className="text-white" size={22} />
               </div>
               <div className="min-w-0">
-                <h1 className="text-lg font-bold text-white leading-tight truncate">Control de Stock</h1>
-                <p className="text-[11px] text-slate-400 mt-0.5">
-                  {limitado ? 'Acceso remoto · sin Ventas' : 'Gestión integral'}
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-indigo-200/90">
+                  Bienvenida
                 </p>
+                <h1 className="text-lg font-bold text-white leading-tight truncate">Lavandería</h1>
+                {limitado && (
+                  <p className="text-[11px] text-slate-400 mt-0.5">Acceso remoto · sin Ventas</p>
+                )}
               </div>
             </div>
           </div>
@@ -418,7 +432,7 @@ const Layout = ({ children }) => {
             <Menu size={20} />
           </button>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-slate-900 dark:text-slate-50 truncate">Control de Stock</p>
+            <p className="text-sm font-bold text-slate-900 dark:text-slate-50 truncate">Lavandería</p>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{displayName}</p>
           </div>
           <button

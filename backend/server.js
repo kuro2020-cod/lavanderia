@@ -31,6 +31,9 @@ import reporteFaltantesRoutes from './routes/reporteFaltantes.js';
 import pedidosRoutes from './routes/pedidos.js';
 import asistenteRoutes from './routes/asistente.js';
 import authRoutes from './routes/auth.js';
+import clientesRoutes from './routes/clientes.js';
+import recepcionRoutes from './routes/recepcion.js';
+import prendasRoutes from './routes/prendas.js';
 import { authenticate, requireAdmin } from './middleware/auth.js';
 import db, { ensureInitialized } from './database/db.js';
 import { iniciarReporteFaltantesCron } from './services/reporteFaltantesCron.js';
@@ -86,6 +89,9 @@ app.use('/api/reporte-faltantes', authenticate, reporteFaltantesRoutes);
 app.use('/api/pedidos', authenticate, pedidosRoutes);
 app.use('/api/asistente', authenticate, asistenteRoutes);
 app.use('/api/usuarios', authenticate, requireAdmin, usuariosRoutes);
+app.use('/api/clientes', authenticate, clientesRoutes);
+app.use('/api/recepcion', authenticate, recepcionRoutes);
+app.use('/api/prendas', authenticate, prendasRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

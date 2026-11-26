@@ -221,6 +221,28 @@ export const mercadopagoAPI = {
     api.post(`/mercadopago/qr/orden/${encodeURIComponent(id)}/cancel`, {}, { timeout: 20000 })
 }
 
+export const prendasAPI = {
+  listar: () => api.get('/prendas'),
+  crear: (data) => api.post('/prendas', data),
+  actualizar: (id, data) => api.put(`/prendas/${id}`, data),
+  eliminar: (id) => api.delete(`/prendas/${id}`)
+}
+
+export const recepcionAPI = {
+  listar: (params) => api.get('/recepcion', { params }),
+  crear: (data) => api.post('/recepcion', data),
+  cambiarEstado: (id, estado) => api.put(`/recepcion/${id}/estado`, { estado })
+}
+
+export const clientesAPI = {
+  getAll: () => api.get('/clientes'),
+  getById: (id) => api.get(`/clientes/${id}`),
+  create: (data) => api.post('/clientes', data),
+  update: (id, data) => api.put(`/clientes/${id}`, data),
+  updateFicha: (id, items) => api.put(`/clientes/${id}/ficha`, { items }),
+  delete: (id) => api.delete(`/clientes/${id}`)
+}
+
 export const asistenteAPI = {
   estado: () => api.get('/asistente/estado'),
   plan: (texto) => api.post('/asistente/plan', { texto }),

@@ -46,7 +46,8 @@ const Login = () => {
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-500 to-indigo-600 flex items-center justify-center shadow-glow mb-4">
               <Boxes className="text-white" size={32} />
             </div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Control de Stock</h1>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-brand-600">Bienvenida</p>
+            <h1 className="text-3xl font-bold text-slate-900 tracking-tight mt-1">Lavandería</h1>
             <p className="text-slate-500 text-sm mt-2">Iniciá sesión para continuar</p>
             {desdeInternet && (
               <p className="mt-3 text-xs text-sky-800 bg-sky-50 border border-sky-200 rounded-xl px-3 py-2 flex gap-2 text-left">
@@ -101,7 +102,7 @@ const Login = () => {
             </button>
           </form>
         </div>
-        <p className="text-center text-slate-400 text-xs mt-6">Sistema de gestión de inventario y ventas</p>
+        <p className="text-center text-slate-400 text-xs mt-6">Tu lavandería, en un solo lugar</p>
       </div>
     </div>
   )

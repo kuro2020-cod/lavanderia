@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { productosAPI, ventasAPI, promocionesAPI, incidenciasAPI, fiadosAPI, cajaAPI, cafeMaquinaAPI, mercadopagoAPI, retirosAPI } from '../services/api'
+import { productosAPI, ventasAPI, promocionesAPI, incidenciasAPI, fiadosAPI, cafeMaquinaAPI, mercadopagoAPI, retirosAPI } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import { useCarrito } from '../context/CarritoContext'
-import InicioCajaModal from '../components/InicioCajaModal'
 import VerificarTransferenciaMpModal from '../components/VerificarTransferenciaMpModal'
 import CobrarQrMpModal from '../components/CobrarQrMpModal'
 import CobrarVentaModal from '../components/CobrarVentaModal'
@@ -237,11 +236,6 @@ const Ventas = () => {
   const [promoChoiceModal, setPromoChoiceModal] = useState(null)
   /** Modal monto para crédito por entrega de envase (checkbox del carrito). */
   const [entregaEnvaseModal, setEntregaEnvaseModal] = useState(null)
-  /** Inicio de caja obligatorio al entrar a Ventas. */
-  const [cajaCheckDone, setCajaCheckDone] = useState(false)
-  const [necesitaApertura, setNecesitaApertura] = useState(false)
-  const [sugeridoCaja, setSugeridoCaja] = useState(null)
-  const [abriendoCaja, setAbriendoCaja] = useState(false)
   const [toast, setToast] = useState(null)
   const searchRef = useRef(null)
   const sugerenciasListRef = useRef(null)
@@ -250,7 +244,6 @@ const Ventas = () => {
   const envaseModalRef = useRef(false)
   const promoChoiceModalRef = useRef(false)
   const entregaEnvaseModalRef = useRef(false)
-  const inicioCajaModalRef = useRef(false)
   const cobrarModalRef = useRef(false)
   const toastTimeoutRef = useRef(null)
   /** Tras agregar al carrito, enfocar cantidad (kg/l) o volver al buscador (unidad). */
@@ -287,7 +280,6 @@ const Ventas = () => {
         envaseModalRef.current ||
         promoChoiceModalRef.current ||
         entregaEnvaseModalRef.current ||
-        inicioCajaModalRef.current ||
         cobrarModalRef.current
       ) {
         return
@@ -390,67 +382,9 @@ const Ventas = () => {
   }, [entregaEnvaseModal])
 
   useEffect(() => {
-    inicioCajaModalRef.current = Boolean(necesitaApertura)
-    if (necesitaApertura) edicionManualRef.current = true
-  }, [necesitaApertura])
-
-  useEffect(() => {
     cobrarModalRef.current = showCobrarModal
     if (showCobrarModal) edicionManualRef.current = true
   }, [showCobrarModal])
-
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const { data } = await cajaAPI.getApertura()
-        if (cancelled) return
-        setNecesitaApertura(Boolean(data?.necesitaApertura))
-        setSugeridoCaja(data?.sugerido ?? null)
-      } catch (e) {
-        console.error(e)
-        if (!cancelled) {
-          setNecesitaApertura(true)
-          setSugeridoCaja(null)
-          showToast({
-            type: 'msg',
-            variant: 'error',
-            message: 'No se pudo verificar el inicio de caja'
-          })
-        }
-      } finally {
-        if (!cancelled) setCajaCheckDone(true)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [showToast])
-
-  const confirmarInicioCaja = useCallback(
-    async (monto) => {
-      setAbriendoCaja(true)
-      try {
-        await cajaAPI.abrir({ monto })
-        setNecesitaApertura(false)
-        showToast({
-          type: 'msg',
-          variant: 'info',
-          message: `Inicio de caja registrado: ${fmtMoney(monto)}`
-        })
-        focusSearch()
-      } catch (e) {
-        showToast({
-          type: 'msg',
-          variant: 'error',
-          message: e.response?.data?.error || 'No se pudo registrar el inicio de caja'
-        })
-      } finally {
-        setAbriendoCaja(false)
-      }
-    },
-    [focusSearch, showToast]
-  )
 
   const loadProductos = useCallback(async () => {
     try {
@@ -535,14 +469,14 @@ const Ventas = () => {
   }, [productos, setCart])
 
   useEffect(() => {
-    if (!loading && cajaCheckDone && !necesitaApertura) focusSearch()
-  }, [loading, cajaCheckDone, necesitaApertura, focusSearch])
+    if (!loading) focusSearch()
+  }, [loading, focusSearch])
 
   useEffect(() => {
-    if (location.pathname === '/ventas' && !loading && cajaCheckDone && !necesitaApertura) {
+    if (location.pathname === '/ventas' && !loading) {
       focusSearch()
     }
-  }, [location.key, location.pathname, loading, cajaCheckDone, necesitaApertura, focusSearch])
+  }, [location.key, location.pathname, loading, focusSearch])
 
   /** Producto incluido en alguna promo vigente (para badge en listado; la venta es por la promo). */
   const promoPorProducto = useMemo(() => {
@@ -1498,7 +1432,6 @@ const Ventas = () => {
         envaseModalRef.current ||
         promoChoiceModalRef.current ||
         entregaEnvaseModalRef.current ||
-        inicioCajaModalRef.current ||
         cobrarModalRef.current
       ) {
         return
@@ -2239,13 +2172,6 @@ const Ventas = () => {
   if (loading) {
     return (
       <div className="relative text-center py-12 text-gray-600">
-        {necesitaApertura && (
-          <InicioCajaModal
-            sugerido={sugeridoCaja}
-            onConfirm={confirmarInicioCaja}
-            submitting={abriendoCaja}
-          />
-        )}
         Cargando productos…
       </div>
     )
@@ -2253,14 +2179,6 @@ const Ventas = () => {
 
   return (
     <div className="relative w-full max-w-[min(100%,100rem)]">
-      {necesitaApertura && (
-        <InicioCajaModal
-          sugerido={sugeridoCaja}
-          onConfirm={confirmarInicioCaja}
-          submitting={abriendoCaja}
-        />
-      )}
-
       {showCobrarModal && (
         <CobrarVentaModal
           open={showCobrarModal}
@@ -2354,7 +2272,7 @@ const Ventas = () => {
           <button
             type="button"
             onClick={reiniciarContadorCafe}
-            disabled={reiniciandoCafe || necesitaApertura}
+            disabled={reiniciandoCafe}
             className="inline-flex flex-1 sm:flex-initial items-center justify-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm shadow-sm disabled:opacity-50"
             title="Pone el contador en 0 y deja el reporte en Movimientos"
           >
